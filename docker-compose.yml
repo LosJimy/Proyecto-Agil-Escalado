@@ -1,27 +1,41 @@
-version: "3.9"
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
     container_name: backend
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgres://user:password@postgres:5432/dbname
+      - DATABASE_URL=postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-dbname}
       - REDIS_URL=redis://redis:6379
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
-#Modificar DB
   postgres:
     image: postgres:15
     container_name: postgres
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=dbname
+      - POSTGRES_USER=${POSTGRES_USER:-user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=${POSTGRES_DB:-dbname}
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-dbname}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7
