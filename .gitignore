@@ -2,6 +2,8 @@
 dist
 package-lock.json
 yarn.lock
+.github
+GEMINI.md
 
 # Created by https://www.gitignore.io/api/node,macos
 
