@@ -1,1 +1,1 @@
-<img src="https://i.imgflip.com/7llvc3.jpg" width="500">
+<img src="https://i.imgflip.com/7llvc3.jpg" width="200">
