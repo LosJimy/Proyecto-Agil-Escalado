@@ -1,9 +1,9 @@
 # custom ignores
 dist
-package-lock.json
 yarn.lock
 .github
 GEMINI.md
+*.pem
 
 # Created by https://www.gitignore.io/api/node,macos
 

@@ -1,7 +1,19 @@
 import express, { Request, Response } from "express";
+import dotenv from "dotenv";
+import path from "path";
+import authRoutes from "./modules/auth/auth.routes";
+
+// Cargar variables de entorno
+dotenv.config({ path: path.join(__dirname, "../../../.env") });
 
 const app = express();
-const port = Number(process.env.PORT ?? 3000);
+const port = Number(process.env.BACKEND_PORT ?? 3000);
+
+// Middlewares
+app.use(express.json());
+
+// Rutas
+app.use("/api/auth", authRoutes);
 
 app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
