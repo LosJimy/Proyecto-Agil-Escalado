@@ -5,11 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: backend
     ports:
-      - "${BACKEND_PORT:-3000}:${BACKEND_PORT:-3000}"
+      - "${BACKEND_PORT:-3000}:3000"
     environment:
       - PORT=${BACKEND_PORT:-3000}
       - DATABASE_URL=postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-dbname}
       - REDIS_URL=redis://redis:6379
+      - JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
     depends_on:
       postgres:
         condition: service_healthy

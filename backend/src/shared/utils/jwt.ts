@@ -1,10 +1,11 @@
 import jwt from "jsonwebtoken";
 
+// Delete newlines from env vars (if any)
 const privateKey = (process.env.JWT_PRIVATE_KEY || "").replace(/\\n/g, "\n");
 const publicKey = (process.env.JWT_PUBLIC_KEY || "").replace(/\\n/g, "\n");
 
 if (!privateKey || !publicKey) {
-  console.warn("JWT keys are not set in environment variables");
+  console.warn("⚠️ JWT keys are not set in environment variables.");
 }
 
 export interface JWTPayload {

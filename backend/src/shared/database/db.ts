@@ -1,16 +1,18 @@
-import { Pool } from 'pg';
-import dotenv from 'dotenv';
-import path from 'path';
+import { Pool } from "pg";
+import dotenv from "dotenv";
 
-// Cargar variables de entorno desde el root si no están cargadas
-dotenv.config({ path: path.join(__dirname, '../../../../.env') });
+dotenv.config();
 
 const pool = new Pool({
-  user: process.env.POSTGRES_USER || 'user',
-  host: process.env.POSTGRES_HOST || 'localhost',
-  database: process.env.POSTGRES_DB || 'dbname',
-  password: process.env.POSTGRES_PASSWORD || 'password',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
+  connectionString: process.env.DATABASE_URL,
+});
+
+pool.on("connect", () => {
+  console.log("Connected to PostgreSQL database");
+});
+
+pool.on("error", (err) => {
+  console.error("Unexpected error in PostgreSQL pool", err);
 });
 
 export const query = (text: string, params?: any[]) => pool.query(text, params);
