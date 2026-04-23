@@ -22,5 +22,5 @@ app.get("/api/health", (req: Request, res: Response) => {
 });
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Backend listening on port ${port}`);
+  console.log(`✅ Backend listening on port ${port}`);
 });

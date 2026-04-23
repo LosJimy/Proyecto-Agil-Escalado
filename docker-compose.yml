@@ -4,6 +4,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: backend
+    command: sh -c "npm install && npm run dev"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     environment:

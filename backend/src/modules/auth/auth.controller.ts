@@ -10,6 +10,11 @@ export class AuthController {
 
   login = async (req: Request, res: Response): Promise<void> => {
     try {
+      if (!req.body || typeof req.body !== "object") {
+        res.status(400).json({ message: "Invalid request body" });
+        return;
+      }
+
       const { email, password } = req.body;
 
       if (!email || !password) {
