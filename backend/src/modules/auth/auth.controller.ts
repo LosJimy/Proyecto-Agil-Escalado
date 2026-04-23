@@ -31,7 +31,7 @@ export class AuthController {
 
       res.status(200).json({ token });
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("❌ Error in AuthController.login:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   };
