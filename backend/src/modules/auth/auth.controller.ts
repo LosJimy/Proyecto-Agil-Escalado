@@ -57,6 +57,20 @@ export class AuthController {
         return;
       }
 
+      // At least 8 characters
+      // Must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number
+      // Can contain special characters
+      const passwordRegex =
+        /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/gm;
+      if (!passwordRegex.test(password)) {
+        res.status(400).json({
+          message:
+            "Password must be at least 8 characters long and contain at least " +
+            "1 uppercase letter, 1 lowercase letter, and 1 number",
+        });
+        return;
+      }
+
       const token = await this.authService.register(email, password);
       res.status(201).json({ token });
     } catch (error) {
