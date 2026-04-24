@@ -51,6 +51,12 @@ export class AuthController {
         return;
       }
 
+      const emailRegex = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/gi;
+      if (!emailRegex.test(email)) {
+        res.status(400).json({ message: "Invalid email format" });
+        return;
+      }
+
       const token = await this.authService.register(email, password);
       res.status(201).json({ token });
     } catch (error) {
