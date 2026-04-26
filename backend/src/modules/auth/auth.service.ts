@@ -2,11 +2,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { AuthRepository } from "./auth.repository";
 import { UserAlreadyExistsError } from "./auth.errors";
-import {
-  signAccessToken,
-  signRefreshToken,
-  verifyToken,
-} from "../../shared/utils/jwt";
+import { signAccessToken } from "../../shared/utils/jwt";
 
 export interface AuthResponse {
   accessToken: string;
@@ -22,15 +18,6 @@ export class AuthService {
 
   constructor() {
     this.authRepository = new AuthRepository();
-  }
-
-  /**
-   * Hashes a token using SHA-256.
-   * @param {string} token - The token to hash.
-   * @returns {string} - The hashed token.
-   */
-  private hashToken(token: string): string {
-    return crypto.createHash("sha256").update(token).digest("hex");
   }
 
   /**
@@ -81,6 +68,14 @@ export class AuthService {
   }
 
   /**
+   * Generates a new refresh token.
+   * @returns {string} - The generated refresh token.
+   */
+  private generateRefreshToken(): string {
+    return crypto.randomBytes(40).toString("hex");
+  }
+
+  /**
    * Refreshes the access token using the provided refresh token. Validates the refresh
    * token, checks if it's revoked or expired, and if valid, generates and returns a
    * new access token and refresh token pair.
@@ -90,10 +85,7 @@ export class AuthService {
    */
   async refreshToken(token: string): Promise<AuthResponse | null> {
     try {
-      const payload = verifyToken(token);
-      const tokenHash = this.hashToken(token);
-
-      const storedToken = await this.authRepository.getRefreshToken(tokenHash);
+      const storedToken = await this.authRepository.getRefreshToken(token);
 
       if (
         !storedToken ||
@@ -101,18 +93,17 @@ export class AuthService {
         new Date() > storedToken.expires_at
       ) {
         if (storedToken && !storedToken.revoked) {
-          await this.authRepository.revokeRefreshToken(tokenHash);
+          await this.authRepository.revokeRefreshToken(token);
         }
         return null;
       }
 
-      const user = await this.authRepository.getUserById(payload.sub);
+      const user = await this.authRepository.getUserById(storedToken.user_id);
       if (!user || !user.is_active) {
         return null;
       }
 
-      // Revoke old token and generate new pair (Rotation)
-      await this.authRepository.revokeRefreshToken(tokenHash);
+      await this.authRepository.revokeRefreshToken(token);
       return this.generateTokenPair(user.id, user.email);
     } catch (error) {
       return null;
@@ -132,13 +123,16 @@ export class AuthService {
     email: string,
   ): Promise<AuthResponse> {
     const accessToken = signAccessToken({ sub: userId, email });
-    const refreshToken = signRefreshToken({ sub: userId, email });
 
-    const tokenHash = this.hashToken(refreshToken);
+    const refreshToken = this.generateRefreshToken();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await this.authRepository.createRefreshToken(userId, tokenHash, expiresAt);
+    await this.authRepository.createRefreshToken(
+      userId,
+      refreshToken,
+      expiresAt,
+    );
 
     return { accessToken, refreshToken };
   }

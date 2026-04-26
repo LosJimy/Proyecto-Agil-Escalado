@@ -28,19 +28,7 @@ export interface JWTPayload {
 export const signAccessToken = (payload: JWTPayload): string => {
   return jwt.sign(payload, privateKey, {
     algorithm: "RS256",
-    expiresIn: "1h",
-  });
-};
-
-/**
- * Signs a refresh token with the provided payload.
- * @param payload - The payload for the refresh token.
- * @returns The signed refresh token.
- */
-export const signRefreshToken = (payload: JWTPayload): string => {
-  return jwt.sign(payload, privateKey, {
-    algorithm: "RS256",
-    expiresIn: "7d",
+    expiresIn: "15m",
   });
 };
 
