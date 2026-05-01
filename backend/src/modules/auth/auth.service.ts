@@ -88,6 +88,7 @@ export class AuthService {
     try {
       const storedToken = await this.authRepository.getRefreshToken(token);
 
+      // Rotate the refresh token if it's valid, otherwise return null
       if (
         !storedToken ||
         storedToken.revoked ||
@@ -107,6 +108,7 @@ export class AuthService {
       await this.authRepository.revokeRefreshToken(token);
       return this.generateTokenPair(user.id, user.email);
     } catch (error) {
+      console.error("❌ Error in AuthService.refreshToken:", error);
       return null;
     }
   }
@@ -129,6 +131,7 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
+    // Revoke all existing refresh tokens for the user before creating a new one
     await this.authRepository.revokeAllUserRefreshTokens(userId);
 
     await this.authRepository.createRefreshToken(
