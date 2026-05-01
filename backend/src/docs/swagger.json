@@ -155,6 +155,24 @@
           }
         }
       }
+    },
+    "/auth/.well-known/jwks.json": {
+      "get": {
+        "summary": "Obtener JWKS",
+        "description": "Devuelve el conjunto de claves públicas en formato JWKS para verificar los JWT firmados con RS256.",
+        "responses": {
+          "200": {
+            "description": "JWKS obtenido exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JWKSResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -211,6 +229,25 @@
           "refreshToken": {
             "type": "string",
             "description": "Token de refresco para renovar el access token"
+          }
+        }
+      },
+      "JWKSResponse": {
+        "type": "object",
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kty": { "type": "string" },
+                "n": { "type": "string" },
+                "e": { "type": "string" },
+                "kid": { "type": "string" },
+                "alg": { "type": "string" },
+                "use": { "type": "string" }
+              }
+            }
           }
         }
       },
