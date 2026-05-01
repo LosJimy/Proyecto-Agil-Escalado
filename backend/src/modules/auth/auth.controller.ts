@@ -24,7 +24,7 @@ export class AuthController {
   login = async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        res.status(400).json({ message: "Invalid request body" });
+        res.status(400).json({ message: "Request body is required" });
         return;
       }
 
@@ -45,7 +45,7 @@ export class AuthController {
       res.status(200).json(result);
     } catch (error) {
       console.error("❌ Error in AuthController.login:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Oops, an unexpected error occurred" });
     }
   };
 
@@ -60,7 +60,7 @@ export class AuthController {
   register = async (req: Request, res: Response): Promise<void> => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        res.status(400).json({ message: "Invalid request body" });
+        res.status(400).json({ message: "Request body is required" });
         return;
       }
 
@@ -100,7 +100,7 @@ export class AuthController {
         res.status(409).json({ message: error.message });
         return;
       }
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Oops, an unexpected error occurred" });
     }
   };
 
@@ -137,7 +137,7 @@ export class AuthController {
       res.status(200).json(result);
     } catch (error) {
       console.error("❌ Error in AuthController.refresh:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Oops, an unexpected error occurred" });
     }
   };
 }

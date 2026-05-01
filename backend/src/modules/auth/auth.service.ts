@@ -52,6 +52,7 @@ export class AuthService {
    * @param {string} password - The user's password.
    * @returns {Promise<AuthResponse>} - A promise resolving to the authentication
    * response.
+   * @throws {UserAlreadyExistsError} - If a user with the given email already exists.
    */
   async register(email: string, password: string): Promise<AuthResponse> {
     const existingUser = await this.authRepository.getUserByEmail(email);
@@ -127,6 +128,8 @@ export class AuthService {
     const refreshToken = this.generateRefreshToken();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await this.authRepository.revokeAllUserRefreshTokens(userId);
 
     await this.authRepository.createRefreshToken(
       userId,
