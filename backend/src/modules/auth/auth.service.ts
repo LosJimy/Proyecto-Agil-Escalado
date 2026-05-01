@@ -6,7 +6,6 @@ import {
   getPublicKeyJWK,
   signAccessToken,
 } from "../../shared/utils/jwt";
-import { UserRepository } from "../user/user.repository";
 
 export interface AuthResponse {
   accessToken: string;
@@ -19,11 +18,9 @@ export interface AuthResponse {
  */
 export class AuthService {
   private authRepository: AuthRepository;
-  private userRepository: UserRepository;
 
   constructor() {
     this.authRepository = new AuthRepository();
-    this.userRepository = new UserRepository();
   }
 
   /**
@@ -35,7 +32,7 @@ export class AuthService {
    * authentication response or null if invalid.
    */
   async login(email: string, password: string): Promise<AuthResponse | null> {
-    const user = await this.userRepository.getUserByEmail(email);
+    const user = await this.authRepository.getUserByEmail(email);
 
     if (!user || !user.is_active) {
       return null;
@@ -84,7 +81,7 @@ export class AuthService {
     email: string,
     password: string,
   ): Promise<AuthResponse | null> {
-    const existingUser = await this.userRepository.getUserByEmail(email);
+    const existingUser = await this.authRepository.getUserByEmail(email);
     if (existingUser) {
       return null;
     }
@@ -92,7 +89,7 @@ export class AuthService {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    const newUser = await this.userRepository.createUser(email, passwordHash);
+    const newUser = await this.authRepository.createUser(email, passwordHash);
 
     return this.generateTokenPair(newUser.id, newUser.email);
   }
@@ -129,7 +126,7 @@ export class AuthService {
         return null;
       }
 
-      const user = await this.userRepository.getUserById(storedToken.user_id);
+      const user = await this.authRepository.getUserById(storedToken.user_id);
       if (!user || !user.is_active) {
         return null;
       }
