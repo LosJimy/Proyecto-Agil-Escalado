@@ -8,11 +8,11 @@ const pool = new Pool({
 });
 
 pool.on("connect", () => {
-  console.log("Connected to PostgreSQL database");
+  console.log("✅ Connected to PostgreSQL database");
 });
 
 pool.on("error", (err) => {
-  console.error("Unexpected error in PostgreSQL pool", err);
+  console.error("❌ Unexpected error in PostgreSQL pool", err);
 });
 
 export const query = (text: string, params?: any[]) => pool.query(text, params);

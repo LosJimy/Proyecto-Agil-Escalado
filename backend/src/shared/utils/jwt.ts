@@ -1,11 +1,17 @@
 import jwt from "jsonwebtoken";
 
-// Delete newlines from env vars (if any)
-const privateKey = (process.env.JWT_PRIVATE_KEY || "").replace(/\\n/g, "\n");
-const publicKey = (process.env.JWT_PUBLIC_KEY || "").replace(/\\n/g, "\n");
+// Load RSA keys from environment variables (base64 encoded)
+const privateKey = Buffer.from(
+  process.env.JWT_PRIVATE_KEY || "",
+  "base64",
+).toString("utf8");
+const publicKey = Buffer.from(
+  process.env.JWT_PUBLIC_KEY || "",
+  "base64",
+).toString("utf8");
 
 if (!privateKey || !publicKey) {
-  console.warn("⚠️ JWT keys are not set in environment variables.");
+  console.warn("⚠️ JWT keys are not set in environment variables");
 }
 
 export interface JWTPayload {
@@ -14,13 +20,23 @@ export interface JWTPayload {
   [key: string]: any;
 }
 
-export const signToken = (payload: JWTPayload): string => {
+/**
+ * Signs an access token with the provided payload.
+ * @param payload - The payload for the access token.
+ * @returns The signed access token.
+ */
+export const signAccessToken = (payload: JWTPayload): string => {
   return jwt.sign(payload, privateKey, {
     algorithm: "RS256",
-    expiresIn: "1h",
+    expiresIn: "15m",
   });
 };
 
+/**
+ * Verifies a JWT token and returns its payload.
+ * @param token - The JWT token to verify.
+ * @returns The verified token payload.
+ */
 export const verifyToken = (token: string): JWTPayload => {
   return jwt.verify(token, publicKey, { algorithms: ["RS256"] }) as JWTPayload;
 };
