@@ -1,0 +1,228 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Sistema de Identidad API",
+    "version": "0.1.0",
+    "description": "API de autenticación y gestión de identidad para login, registro y renovación de tokens."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor local de desarrollo"
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "Iniciar sesión",
+        "description": "Autentica un usuario con correo y contraseña, devuelve accessToken y refreshToken.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Inicio de sesión exitoso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales inválidas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Registrar usuario",
+        "description": "Crea un nuevo usuario y devuelve un par de tokens para autenticación.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registro exitoso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El usuario ya existe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Renovar tokens",
+        "description": "Renueva un access token usando un refresh token válido.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refresh exitoso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "usuario@ejemplo.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "Password123"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "usuario@ejemplo.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "Password123"
+          }
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "required": ["refreshToken"],
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "example": "e0b1a7f81c9d4a2b3c4d5e6f7a8b9c0d"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "JWT de acceso firmado con RS256"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Token de refresco para renovar el access token"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Descripción del error"
+          }
+        }
+      }
+    }
+  }
+}
