@@ -140,4 +140,21 @@ export class AuthController {
       res.status(500).json({ message: "Oops, an unexpected error occurred" });
     }
   };
+
+  /**
+   * Handles HTTP GET requests for retrieving the JSON Web Key Set (JWKS) containing the
+   * public key used for verifying JWTs.
+   * @param {Request} req - The Express request object.
+   * @param {Response} res - The Express response object.
+   * @returns {Promise<void>} - A promise that resolves when the response is sent.
+   */
+  getJwks = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const jwks = await this.authService.getJwks();
+      res.status(200).json(jwks);
+    } catch (error) {
+      console.error("❌ Error in AuthController.getJwks:", error);
+      res.status(500).json({ message: "Oops, an unexpected error occurred" });
+    }
+  };
 }

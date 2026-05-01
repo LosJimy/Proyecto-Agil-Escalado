@@ -2,7 +2,11 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { AuthRepository } from "./auth.repository";
 import { UserAlreadyExistsError } from "./auth.errors";
-import { signAccessToken } from "../../shared/utils/jwt";
+import {
+  decodeBase64,
+  getPublicKeyJWK,
+  signAccessToken,
+} from "../../shared/utils/jwt";
 
 export interface AuthResponse {
   accessToken: string;
@@ -141,5 +145,24 @@ export class AuthService {
     );
 
     return { accessToken, refreshToken };
+  }
+
+  /**
+   * Retrieves the JSON Web Key Set (JWKS) containing the public key used for verifying
+   * JWTs.
+   * @returns {Promise<{ keys: any[] }>} - A promise resolving to an object containing
+   * the JWKS.
+   * @throws {Error} - If the JWT public key is not set in environment variables.
+   */
+  async getJwks(): Promise<{ keys: any[] }> {
+    const publicKey = decodeBase64(process.env.JWT_PUBLIC_KEY || "");
+    if (!publicKey) {
+      throw new Error("⚠️ JWT public key is not set in environment variables");
+    }
+    const jwk = await getPublicKeyJWK(publicKey);
+
+    return {
+      keys: [jwk],
+    };
   }
 }
