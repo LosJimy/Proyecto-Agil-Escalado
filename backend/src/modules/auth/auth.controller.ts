@@ -49,6 +49,34 @@ export class AuthController {
     }
   };
 
+  logout = async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.body || typeof req.body !== "object") {
+        res.status(400).json({ message: "Request body is required" });
+        return;
+      }
+
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        res.status(400).json({ message: "Refresh token is required" });
+        return;
+      }
+
+      const result = await this.authService.logout(refreshToken);
+      if (result) {
+        res.status(200).json({ message: "Logged out successfully" });
+      } else {
+        res
+          .status(400)
+          .json({ message: "Invalid or already revoked refresh token" });
+      }
+    } catch (error) {
+      console.error("❌ Error in AuthController.logout:", error);
+      res.status(500).json({ message: "Oops, an unexpected error occurred" });
+    }
+  };
+
   /**
    * Handles HTTP POST requests for user registration (`/auth/register`). Validates the
    * request body, checks if the user already exists, and creates a new user account.

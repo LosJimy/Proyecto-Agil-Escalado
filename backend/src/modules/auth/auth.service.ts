@@ -7,6 +7,7 @@ import {
   getPublicKeyJWK,
   signAccessToken,
 } from "../../shared/utils/jwt";
+import { UserRepository } from "../user/user.repository";
 
 export interface AuthResponse {
   accessToken: string;
@@ -19,9 +20,11 @@ export interface AuthResponse {
  */
 export class AuthService {
   private authRepository: AuthRepository;
+  private userRepository: UserRepository;
 
   constructor() {
     this.authRepository = new AuthRepository();
+    this.userRepository = new UserRepository();
   }
 
   /**
@@ -33,7 +36,7 @@ export class AuthService {
    * authentication response or null if invalid.
    */
   async login(email: string, password: string): Promise<AuthResponse | null> {
-    const user = await this.authRepository.getUserByEmail(email);
+    const user = await this.userRepository.getUserByEmail(email);
 
     if (!user || !user.is_active) {
       return null;
@@ -49,6 +52,26 @@ export class AuthService {
   }
 
   /**
+   * Logs out a user by revoking the provided refresh token, preventing it from being
+   * used to generate new access tokens.
+   * @param {string} token - The refresh token to revoke.
+   * @returns {Promise<boolean>} - A promise that resolves to true if the token is
+   * successfully revoked, false otherwise.
+   */
+  async logout(token: string): Promise<boolean> {
+    const storedToken = await this.authRepository.getRefreshToken(token);
+    if (storedToken && !storedToken.revoked) {
+      await this.authRepository.revokeRefreshToken(token);
+      return true;
+    } else {
+      console.warn(
+        `⚠️ Attempted to revoke non-existent or already revoked token: ${token}`,
+      );
+      return false;
+    }
+  }
+
+  /**
    * Registers a new user with the provided email and password. Validates that the user
    * does not already exist, hashes the password, creates the user, and returns an
    * access token and a refresh token.
@@ -59,7 +82,7 @@ export class AuthService {
    * @throws {UserAlreadyExistsError} - If a user with the given email already exists.
    */
   async register(email: string, password: string): Promise<AuthResponse> {
-    const existingUser = await this.authRepository.getUserByEmail(email);
+    const existingUser = await this.userRepository.getUserByEmail(email);
     if (existingUser) {
       throw new UserAlreadyExistsError();
     }
@@ -67,7 +90,7 @@ export class AuthService {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    const newUser = await this.authRepository.createUser(email, passwordHash);
+    const newUser = await this.userRepository.createUser(email, passwordHash);
 
     return this.generateTokenPair(newUser.id, newUser.email);
   }
@@ -104,7 +127,7 @@ export class AuthService {
         return null;
       }
 
-      const user = await this.authRepository.getUserById(storedToken.user_id);
+      const user = await this.userRepository.getUserById(storedToken.user_id);
       if (!user || !user.is_active) {
         return null;
       }
