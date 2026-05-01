@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
-import { UserAlreadyExistsError } from "./auth.errors";
 
 /**
  * Handles HTTP requests related to user authentication, including login, registration,
@@ -119,15 +118,14 @@ export class AuthController {
       }
 
       const result = await this.authService.register(email, password);
+      if (!result) {
+        res.status(409).json({ message: "User already exists" });
+        return;
+      }
+
       res.status(201).json(result);
     } catch (error) {
       console.error("❌ Error in AuthController.register:", error);
-
-      // TODO: Implement better error handling and logging
-      if (error instanceof UserAlreadyExistsError) {
-        res.status(409).json({ message: error.message });
-        return;
-      }
       res.status(500).json({ message: "Oops, an unexpected error occurred" });
     }
   };

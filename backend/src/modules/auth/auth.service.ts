@@ -1,7 +1,6 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { AuthRepository } from "./auth.repository";
-import { UserAlreadyExistsError } from "./auth.errors";
 import {
   decodeBase64,
   getPublicKeyJWK,
@@ -77,14 +76,17 @@ export class AuthService {
    * access token and a refresh token.
    * @param {string} email - The user's email.
    * @param {string} password - The user's password.
-   * @returns {Promise<AuthResponse>} - A promise resolving to the authentication
-   * response.
+   * @returns {Promise<AuthResponse | null>} - A promise resolving to the authentication
+   * response or null if registration fails (user already exists).
    * @throws {UserAlreadyExistsError} - If a user with the given email already exists.
    */
-  async register(email: string, password: string): Promise<AuthResponse> {
+  async register(
+    email: string,
+    password: string,
+  ): Promise<AuthResponse | null> {
     const existingUser = await this.userRepository.getUserByEmail(email);
     if (existingUser) {
-      throw new UserAlreadyExistsError();
+      return null;
     }
 
     const saltRounds = 10;
