@@ -28,5 +28,9 @@ export const ERROR_MESSAGES = {
       message: "Password does not meet complexity requirements",
       statusCode: 400,
     },
+    USER_ALREADY_EXISTS: {
+      message: "User already exists",
+      statusCode: 409,
+    },
   },
 } as const;
