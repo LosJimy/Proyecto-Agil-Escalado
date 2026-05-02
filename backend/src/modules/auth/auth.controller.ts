@@ -1,5 +1,7 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { AuthService } from "./auth.service";
+import { AppError } from "../../shared/errors/AppError";
+import { ERROR_MESSAGES } from "../../shared/constants/errorCodes";
 
 /**
  * Handles HTTP requests related to user authentication, including login, registration,
@@ -18,61 +20,74 @@ export class AuthController {
    * @param {Request} req - The Express request object containing the login credentials
    * in the body (expects `email` and `password`).
    * @param {Response} res - The Express response object.
-   * @returns {Promise<void>} - A promise that resolves when the response is sent.
+   * @param {NextFunction} next - The Express next function for error handling.
    */
-  login = async (req: Request, res: Response): Promise<void> => {
+  login = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        res.status(400).json({ message: "Request body is required" });
-        return;
+        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_BODY;
+        return next(new AppError(message, statusCode));
       }
 
       const { email, password } = req.body;
 
       if (!email || !password) {
-        res.status(400).json({ message: "Email and password are required" });
-        return;
+        const { message, statusCode } =
+          ERROR_MESSAGES.AUTH.MISSING_EMAIL_PASSWORD;
+        return next(new AppError(message, statusCode));
       }
 
       const result = await this.authService.login(email, password);
 
       if (!result) {
-        res.status(401).json({ message: "Invalid credentials" });
-        return;
+        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_CREDENTIALS;
+        return next(new AppError(message, statusCode));
       }
 
       res.status(200).json(result);
     } catch (error) {
-      console.error("❌ Error in AuthController.login:", error);
-      res.status(500).json({ message: "Oops, an unexpected error occurred" });
+      next(error);
     }
   };
 
-  logout = async (req: Request, res: Response): Promise<void> => {
+  /**
+   * Handles HTTP POST requests for user logout (`/auth/logout`). Validates the request
+   * body, verifies the refresh token, and revokes it if valid.
+   * @param req The Express request object containing the refresh token in the body
+   * (expects `refreshToken`).
+   * @param res The Express response object.
+   * @param next The Express next function for error handling.
+   * @returns A promise that resolves when the response is sent.
+   */
+  logout = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        res.status(400).json({ message: "Request body is required" });
-        return;
+        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_BODY;
+        return next(new AppError(message, statusCode));
       }
 
       const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        res.status(400).json({ message: "Refresh token is required" });
-        return;
+        const { message, statusCode } =
+          ERROR_MESSAGES.AUTH.MISSING_REFRESH_TOKEN;
+        return next(new AppError(message, statusCode));
       }
 
       const result = await this.authService.logout(refreshToken);
       if (result) {
         res.status(200).json({ message: "Logged out successfully" });
       } else {
-        res
-          .status(400)
-          .json({ message: "Invalid or already revoked refresh token" });
+        const { message, statusCode } =
+          ERROR_MESSAGES.AUTH.INVALID_REFRESH_TOKEN;
+        return next(new AppError(message, statusCode));
       }
     } catch (error) {
-      console.error("❌ Error in AuthController.logout:", error);
-      res.status(500).json({ message: "Oops, an unexpected error occurred" });
+      next(error);
     }
   };
 
@@ -82,26 +97,32 @@ export class AuthController {
    * @param {Request} req - The Express request object containing the registration data
    * in the body (expects `email` and `password`).
    * @param {Response} res - The Express response object.
+   * @param {NextFunction} next - The Express next function for error handling.
    * @returns {Promise<void>} - A promise that resolves when the response is sent.
    */
-  register = async (req: Request, res: Response): Promise<void> => {
+  register = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        res.status(400).json({ message: "Request body is required" });
-        return;
+        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_BODY;
+        return next(new AppError(message, statusCode));
       }
 
       const { email, password } = req.body;
 
       if (!email || !password) {
-        res.status(400).json({ message: "Email and password are required" });
-        return;
+        const { message, statusCode } =
+          ERROR_MESSAGES.AUTH.MISSING_EMAIL_PASSWORD;
+        return next(new AppError(message, statusCode));
       }
 
       const emailRegex = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/gi;
       if (!emailRegex.test(email)) {
-        res.status(400).json({ message: "Invalid email format" });
-        return;
+        const { message, statusCode } = ERROR_MESSAGES.AUTH.WRONG_EMAIL_FORMAT;
+        return next(new AppError(message, statusCode));
       }
 
       // At least 8 characters, must contain at least 1 uppercase letter, 1 lowercase
@@ -109,24 +130,20 @@ export class AuthController {
       const passwordRegex =
         /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/gm;
       if (!passwordRegex.test(password)) {
-        res.status(400).json({
-          message:
-            "Password must be at least 8 characters long and contain at least " +
-            "1 uppercase letter, 1 lowercase letter, and 1 number",
-        });
-        return;
+        const { message, statusCode } =
+          ERROR_MESSAGES.AUTH.WRONG_PASSWORD_FORMAT;
+        return next(new AppError(message, statusCode));
       }
 
       const result = await this.authService.register(email, password);
       if (!result) {
-        res.status(409).json({ message: "User already exists" });
-        return;
+        const { message, statusCode } = ERROR_MESSAGES.AUTH.USER_ALREADY_EXISTS;
+        return next(new AppError(message, statusCode));
       }
 
       res.status(201).json(result);
     } catch (error) {
-      console.error("❌ Error in AuthController.register:", error);
-      res.status(500).json({ message: "Oops, an unexpected error occurred" });
+      next(error);
     }
   };
 
@@ -137,33 +154,39 @@ export class AuthController {
    * @param {Request} req - The Express request object containing the refresh token in
    * the body (expects `refreshToken`).
    * @param {Response} res - The Express response object.
+   * @param {NextFunction} next - The Express next function for error handling.
    * @returns {Promise<void>} - A promise that resolves when the response is sent.
    */
-  refresh = async (req: Request, res: Response): Promise<void> => {
+  refresh = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        res.status(400).json({ message: "Invalid request body" });
-        return;
+        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_BODY;
+        return next(new AppError(message, statusCode));
       }
 
       const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        res.status(400).json({ message: "Refresh token is required" });
-        return;
+        const { message, statusCode } =
+          ERROR_MESSAGES.AUTH.MISSING_REFRESH_TOKEN;
+        return next(new AppError(message, statusCode));
       }
 
       const result = await this.authService.refreshToken(refreshToken);
 
       if (!result) {
-        res.status(401).json({ message: "Invalid or expired refresh token" });
-        return;
+        const { message, statusCode } =
+          ERROR_MESSAGES.AUTH.INVALID_REFRESH_TOKEN;
+        return next(new AppError(message, statusCode));
       }
 
       res.status(200).json(result);
     } catch (error) {
-      console.error("❌ Error in AuthController.refresh:", error);
-      res.status(500).json({ message: "Oops, an unexpected error occurred" });
+      next(error);
     }
   };
 
@@ -172,15 +195,19 @@ export class AuthController {
    * public key used for verifying JWTs.
    * @param {Request} req - The Express request object.
    * @param {Response} res - The Express response object.
+   * @param {NextFunction} next - The Express next function for error handling.
    * @returns {Promise<void>} - A promise that resolves when the response is sent.
    */
-  getJwks = async (req: Request, res: Response): Promise<void> => {
+  getJwks = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     try {
       const jwks = await this.authService.getJwks();
       res.status(200).json(jwks);
     } catch (error) {
-      console.error("❌ Error in AuthController.getJwks:", error);
-      res.status(500).json({ message: "Oops, an unexpected error occurred" });
+      next(error);
     }
   };
 }
