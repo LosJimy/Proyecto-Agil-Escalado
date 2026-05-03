@@ -1,19 +1,36 @@
 import { Client } from "pg";
 import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import { expect, test } from "vitest";
+import path from "path";
 
 test("example test", async () => {
-  await using container = await new PostgreSqlContainer(
-    "postgres:15-alpine",
-  ).start();
+  const schemaPath = path.resolve(__dirname, "../../db/schema.sql");
+  await using container = await new PostgreSqlContainer("postgres:15-alpine")
+    .withCopyFilesToContainer([
+      {
+        source: schemaPath,
+        target: "/docker-entrypoint-initdb.d/schema.sql",
+      },
+    ])
+    .start();
 
   const client = new Client({
     connectionString: container.getConnectionUri(),
   });
   await client.connect();
 
-  const result = await client.query("SELECT 1");
-  expect(result.rows[0]).toEqual({ "?column?": 1 });
+  try {
+    const result = await client.query(`
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+    AND table_name IN ('users', 'refresh_tokens')
+  `);
+    const tableNames = result.rows.map((row) => row.table_name);
 
-  await client.end();
-}, 15_000);
+    expect(tableNames).toContain("users");
+    expect(tableNames).toContain("refresh_tokens");
+  } finally {
+    await client.end();
+  }
+});
