@@ -1,14 +1,13 @@
+import path from "path";
 import { Client } from "pg";
 import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import { expect, test } from "vitest";
-import path from "path";
 
 test("example test", async () => {
-  const schemaPath = path.resolve(__dirname, "../../db/schema.sql");
   await using container = await new PostgreSqlContainer("postgres:15-alpine")
     .withCopyFilesToContainer([
       {
-        source: schemaPath,
+        source: path.resolve(__dirname, "../db/schema.sql"),
         target: "/docker-entrypoint-initdb.d/schema.sql",
       },
     ])
