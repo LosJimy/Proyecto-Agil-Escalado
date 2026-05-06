@@ -4,9 +4,9 @@ export default defineConfig({
   test: {
     // Testcontainers takes some time to pull the image
     testTimeout: 30_000,
-    include: ["src/**/*.test.ts"],
+    include: ["test/**/*.test.ts"],
     exclude: ["dist/**", "node_modules/**"],
-    setupFiles: ["./src/test/vitest.setup.ts"],
+    setupFiles: ["./test/vitest.setup.ts"],
     environment: "node",
   },
 });
