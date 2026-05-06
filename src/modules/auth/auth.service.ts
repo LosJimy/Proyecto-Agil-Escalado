@@ -6,6 +6,7 @@ import {
   getPublicKeyJWK,
   signAccessToken,
 } from "../../shared/utils/jwt";
+import { LOGS_MESSAGES } from "../../shared/constants/logsMessages";
 
 export interface AuthResponse {
   accessToken: string;
@@ -17,11 +18,7 @@ export interface AuthResponse {
  * token refreshing.
  */
 export class AuthService {
-  private authRepository: AuthRepository;
-
-  constructor() {
-    this.authRepository = new AuthRepository();
-  }
+  constructor(private readonly authRepository: AuthRepository) {}
 
   /**
    * Authenticates a user with the provided email and password. If the credentials are
@@ -60,10 +57,8 @@ export class AuthService {
       await this.authRepository.revokeRefreshToken(token);
       return true;
     } else {
-      console.warn(
-        `⚠️ Attempted to revoke non-existent or already revoked token: ${token}`,
-      );
-      return false;
+      const errorMessage = LOGS_MESSAGES.ERRORS.AUTH.SERVICE.NON_EXISTENT_TOKEN;
+      throw new Error(errorMessage);
     }
   }
 
@@ -134,8 +129,7 @@ export class AuthService {
       await this.authRepository.revokeRefreshToken(token);
       return this.generateTokenPair(user.id, user.email);
     } catch (error) {
-      console.error("❌ Error in AuthService.refreshToken:", error);
-      return null;
+      throw error;
     }
   }
 
@@ -179,7 +173,9 @@ export class AuthService {
   async getJwks(): Promise<{ keys: any[] }> {
     const publicKey = decodeBase64(process.env.JWT_PUBLIC_KEY || "");
     if (!publicKey) {
-      throw new Error("⚠️ JWT public key is not set in environment variables");
+      const errorMessage =
+        LOGS_MESSAGES.ERRORS.AUTH.SERVICE.JWT_PUBLIC_KEY_NOT_SET;
+      throw new Error(errorMessage);
     }
     const jwk = await getPublicKeyJWK(publicKey);
 

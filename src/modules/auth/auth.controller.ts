@@ -1,18 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthService } from "./auth.service";
 import { AppError } from "../../shared/errors/AppError";
-import { ERROR_MESSAGES } from "../../shared/constants/errorCodes";
+import { LOGS_MESSAGES } from "../../shared/constants/logsMessages";
 
 /**
  * Handles HTTP requests related to user authentication, including login, registration,
  * and token refreshing.
  */
 export class AuthController {
-  private authService: AuthService;
-
-  constructor() {
-    this.authService = new AuthService();
-  }
+  constructor(private readonly authService: AuthService) {}
 
   /**
    * Handles HTTP POST requests for user login (`/auth/login`). Validates the request
@@ -25,7 +21,8 @@ export class AuthController {
   login = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_BODY;
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_BODY;
         return next(new AppError(message, statusCode));
       }
 
@@ -33,14 +30,15 @@ export class AuthController {
 
       if (!email || !password) {
         const { message, statusCode } =
-          ERROR_MESSAGES.AUTH.MISSING_EMAIL_PASSWORD;
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.MISSING_EMAIL_PASSWORD;
         return next(new AppError(message, statusCode));
       }
 
       const result = await this.authService.login(email, password);
 
       if (!result) {
-        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_CREDENTIALS;
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_CREDENTIALS;
         return next(new AppError(message, statusCode));
       }
 
@@ -66,7 +64,8 @@ export class AuthController {
   ): Promise<void> => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_BODY;
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_BODY;
         return next(new AppError(message, statusCode));
       }
 
@@ -74,7 +73,7 @@ export class AuthController {
 
       if (!refreshToken) {
         const { message, statusCode } =
-          ERROR_MESSAGES.AUTH.MISSING_REFRESH_TOKEN;
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.MISSING_REFRESH_TOKEN;
         return next(new AppError(message, statusCode));
       }
 
@@ -83,7 +82,7 @@ export class AuthController {
         res.status(200).json({ message: "Logged out successfully" });
       } else {
         const { message, statusCode } =
-          ERROR_MESSAGES.AUTH.INVALID_REFRESH_TOKEN;
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_REFRESH_TOKEN;
         return next(new AppError(message, statusCode));
       }
     } catch (error) {
@@ -107,7 +106,8 @@ export class AuthController {
   ): Promise<void> => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_BODY;
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_BODY;
         return next(new AppError(message, statusCode));
       }
 
@@ -115,13 +115,14 @@ export class AuthController {
 
       if (!email || !password) {
         const { message, statusCode } =
-          ERROR_MESSAGES.AUTH.MISSING_EMAIL_PASSWORD;
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.MISSING_EMAIL_PASSWORD;
         return next(new AppError(message, statusCode));
       }
 
       const emailRegex = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/gi;
       if (!emailRegex.test(email)) {
-        const { message, statusCode } = ERROR_MESSAGES.AUTH.WRONG_EMAIL_FORMAT;
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.WRONG_EMAIL_FORMAT;
         return next(new AppError(message, statusCode));
       }
 
@@ -131,13 +132,14 @@ export class AuthController {
         /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/gm;
       if (!passwordRegex.test(password)) {
         const { message, statusCode } =
-          ERROR_MESSAGES.AUTH.WRONG_PASSWORD_FORMAT;
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.WRONG_PASSWORD_FORMAT;
         return next(new AppError(message, statusCode));
       }
 
       const result = await this.authService.register(email, password);
       if (!result) {
-        const { message, statusCode } = ERROR_MESSAGES.AUTH.USER_ALREADY_EXISTS;
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.USER_ALREADY_EXISTS;
         return next(new AppError(message, statusCode));
       }
 
@@ -164,7 +166,8 @@ export class AuthController {
   ): Promise<void> => {
     try {
       if (!req.body || typeof req.body !== "object") {
-        const { message, statusCode } = ERROR_MESSAGES.AUTH.INVALID_BODY;
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_BODY;
         return next(new AppError(message, statusCode));
       }
 
@@ -172,7 +175,7 @@ export class AuthController {
 
       if (!refreshToken) {
         const { message, statusCode } =
-          ERROR_MESSAGES.AUTH.MISSING_REFRESH_TOKEN;
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.MISSING_REFRESH_TOKEN;
         return next(new AppError(message, statusCode));
       }
 
@@ -180,7 +183,7 @@ export class AuthController {
 
       if (!result) {
         const { message, statusCode } =
-          ERROR_MESSAGES.AUTH.INVALID_REFRESH_TOKEN;
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_REFRESH_TOKEN;
         return next(new AppError(message, statusCode));
       }
 

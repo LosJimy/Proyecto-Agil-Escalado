@@ -2,12 +2,14 @@ import path from "path";
 import { Client } from "pg";
 import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import { expect, test } from "vitest";
+import { createApp } from "../shared/factories/app-factory";
+import request from "supertest";
 
 test("example test", async () => {
   await using container = await new PostgreSqlContainer("postgres:15-alpine")
     .withCopyFilesToContainer([
       {
-        source: path.resolve(__dirname, "../db/schema.sql"),
+        source: path.resolve(__dirname, "../../db/schema.sql"),
         target: "/docker-entrypoint-initdb.d/schema.sql",
       },
     ])
@@ -18,17 +20,17 @@ test("example test", async () => {
   });
   await client.connect();
 
-  try {
-    const result = await client.query(`
-    SELECT table_name
-    FROM information_schema.tables
-    WHERE table_schema = 'public'
-    AND table_name IN ('users', 'refresh_tokens')
-  `);
-    const tableNames = result.rows.map((row) => row.table_name);
+  const app = createApp(client);
 
-    expect(tableNames).toContain("users");
-    expect(tableNames).toContain("refresh_tokens");
+  try {
+    const result = await request(app).post("/auth/register").send({
+      email: "pablo@gmail.com",
+      password: "Password123",
+    });
+
+    expect(result.status).toBe(201);
+    expect(result.body).toHaveProperty("accessToken");
+    expect(result.body).toHaveProperty("refreshToken");
   } finally {
     await client.end();
   }
