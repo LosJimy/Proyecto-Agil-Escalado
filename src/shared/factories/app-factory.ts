@@ -5,7 +5,7 @@ import { AuthService } from "../../modules/auth/auth.service";
 import { AuthController } from "../../modules/auth/auth.controller";
 import { createAuthRoutes } from "../../modules/auth/auth.routes";
 import swaggerUi from "swagger-ui-express";
-import swaggerDocument from "../../docs/swagger.json" with { type: "json" };
+import swaggerDocument from "../../docs/swagger.json";
 import { errorHandler } from "../middlewares/errorHandler";
 import { logger } from "../utils/logger";
 import { Request, Response } from "express";

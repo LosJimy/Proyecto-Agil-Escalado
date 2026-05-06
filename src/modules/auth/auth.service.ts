@@ -56,10 +56,8 @@ export class AuthService {
     if (storedToken && !storedToken.revoked) {
       await this.authRepository.revokeRefreshToken(token);
       return true;
-    } else {
-      const errorMessage = LOGS_MESSAGES.ERRORS.AUTH.SERVICE.NON_EXISTENT_TOKEN;
-      throw new Error(errorMessage);
     }
+    return false;
   }
 
   /**
