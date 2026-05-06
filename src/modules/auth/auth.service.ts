@@ -31,7 +31,7 @@ export class AuthService {
   async login(email: string, password: string): Promise<AuthResponse | null> {
     const user = await this.authRepository.getUserByEmail(email);
 
-    if (!user || !user.is_active) {
+    if (!user || !user.is_active || !user.password_hash) {
       return null;
     }
 
@@ -139,7 +139,7 @@ export class AuthService {
    * @returns {Promise<AuthResponse>} - A promise resolving to the authentication
    * response.
    */
-  private async generateTokenPair(
+  async generateTokenPair(
     userId: string,
     email: string,
   ): Promise<AuthResponse> {

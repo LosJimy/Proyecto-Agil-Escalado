@@ -1,14 +1,18 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthService } from "./auth.service";
+import { OtpService } from "./otp.service";
 import { AppError } from "../../shared/errors/AppError";
 import { LOGS_MESSAGES } from "../../shared/constants/logsMessages";
 
 /**
  * Handles HTTP requests related to user authentication, including login, registration,
- * and token refreshing.
+ * token refreshing, and passwordless OTP authentication.
  */
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly otpService: OtpService,
+  ) {}
 
   /**
    * Handles HTTP POST requests for user login (`/auth/login`). Validates the request
@@ -213,4 +217,89 @@ export class AuthController {
       next(error);
     }
   };
+
+  /**
+   * Handles HTTP POST requests for requesting a passwordless OTP (`/auth/otp/request`).
+   * Validates the email, generates an OTP, and returns it (dev mode).
+   * @param {Request} req - The Express request object containing the email in the body.
+   * @param {Response} res - The Express response object.
+   * @param {NextFunction} next - The Express next function for error handling.
+   * @returns {Promise<void>} - A promise that resolves when the response is sent.
+   */
+  requestOtp = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.body || typeof req.body !== "object") {
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_BODY;
+        return next(new AppError(message, statusCode));
+      }
+
+      const { email } = req.body;
+
+      if (!email) {
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.MISSING_EMAIL;
+        return next(new AppError(message, statusCode));
+      }
+
+      const emailRegex = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/gi;
+      if (!emailRegex.test(email)) {
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.WRONG_EMAIL_FORMAT;
+        return next(new AppError(message, statusCode));
+      }
+
+      const result = await this.otpService.requestOtp(email);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Handles HTTP POST requests for verifying a passwordless OTP (`/auth/otp/verify`).
+   * Validates the email and OTP code, verifies them, and returns tokens if valid.
+   * @param {Request} req - The Express request object containing email and otp in body.
+   * @param {Response} res - The Express response object.
+   * @param {NextFunction} next - The Express next function for error handling.
+   * @returns {Promise<void>} - A promise that resolves when the response is sent.
+   */
+  verifyOtp = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.body || typeof req.body !== "object") {
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_BODY;
+        return next(new AppError(message, statusCode));
+      }
+
+      const { email, otp } = req.body;
+
+      if (!email || !otp) {
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.MISSING_EMAIL_OTP;
+        return next(new AppError(message, statusCode));
+      }
+
+      const result = await this.otpService.verifyOtp(email, otp);
+
+      if (!result) {
+        const { message, statusCode } =
+          LOGS_MESSAGES.ERRORS.AUTH.CONTROLLER.INVALID_OTP;
+        return next(new AppError(message, statusCode));
+      }
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+

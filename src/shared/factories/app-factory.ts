@@ -2,6 +2,7 @@ import express from "express";
 import { Client, Pool } from "pg";
 import { AuthRepository } from "../../modules/auth/auth.repository";
 import { AuthService } from "../../modules/auth/auth.service";
+import { OtpService } from "../../modules/auth/otp.service";
 import { AuthController } from "../../modules/auth/auth.controller";
 import { createAuthRoutes } from "../../modules/auth/auth.routes";
 import swaggerUi from "swagger-ui-express";
@@ -15,7 +16,8 @@ export function createApp(query: Pool | Client) {
 
   const authRepository = new AuthRepository(query);
   const authService = new AuthService(authRepository);
-  const authController = new AuthController(authService);
+  const otpService = new OtpService(authRepository, authService);
+  const authController = new AuthController(authService, otpService);
   const authRoutes = createAuthRoutes(authController);
 
   app.use(express.json());
@@ -37,3 +39,4 @@ export function createApp(query: Pool | Client) {
 
   return app;
 }
+

@@ -36,12 +36,37 @@ export const LOGS_MESSAGES = {
           message: "User already exists",
           statusCode: 409,
         },
+        MISSING_EMAIL: {
+          message: "Email is required",
+          statusCode: 400,
+        },
+        MISSING_EMAIL_OTP: {
+          message: "Email and OTP code are required",
+          statusCode: 400,
+        },
+        OTP_REQUEST_FAILED: {
+          message: "Failed to process OTP request",
+          statusCode: 500,
+        },
+        INVALID_OTP: {
+          message: "Invalid or expired OTP code",
+          statusCode: 401,
+        },
       },
       SERVICE: {
         NON_EXISTENT_TOKEN:
           "Attempted to revoke non-existent or already revoked token",
         JWT_PUBLIC_KEY_NOT_SET:
           "JWT public key is not set in environment variables",
+        OTP_GENERATED: (email: string) => `OTP generated for ${email}`,
+        OTP_VERIFIED: (email: string) =>
+          `OTP verified successfully for ${email}`,
+        OTP_INVALID: (email: string) =>
+          `Invalid or expired OTP attempt for ${email}`,
+        USER_NOT_FOUND: (email: string) =>
+          `User not found for OTP verification: ${email}`,
+        USER_INACTIVE: (email: string) =>
+          `Inactive user attempted OTP verification: ${email}`,
       },
     },
     DB: {
@@ -65,3 +90,4 @@ export const LOGS_MESSAGES = {
     },
   },
 } as const;
+
