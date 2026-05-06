@@ -36,6 +36,23 @@ beforeEach(async () => {
   await client.query("TRUNCATE users, refresh_tokens, otp_codes CASCADE");
 });
 
+/**
+ * Helper to retrieve the latest unused OTP code for an email from the database.
+ */
+async function getLatestOtpCode(
+  dbClient: Client,
+  email: string,
+): Promise<string> {
+  const result = await dbClient.query(
+    `SELECT oc.code FROM otp_codes oc
+     JOIN users u ON oc.user_id = u.id
+     WHERE u.email = $1 AND oc.used = FALSE
+     ORDER BY oc.created_at DESC LIMIT 1`,
+    [email],
+  );
+  return result.rows[0]?.code;
+}
+
 describe("Auth Routes Integration Tests", () => {
   describe("POST /auth/register", () => {
     test("should register a new user and return tokens", async () => {
@@ -274,18 +291,27 @@ describe("Auth Routes Integration Tests", () => {
   });
 
   describe("POST /auth/otp/request", () => {
-    test("should return OTP for a new email (auto-creates user)", async () => {
+    test("should accept a new email and return success message", async () => {
       const result = await request(app).post("/auth/otp/request").send({
         email: "otp-user@gmail.com",
       });
 
       expect(result.status).toBe(200);
       expect(result.body).toHaveProperty("message", "OTP sent successfully");
-      expect(result.body).toHaveProperty("otp");
-      expect(result.body.otp).toMatch(/^\d{6}$/);
+      expect(result.body).not.toHaveProperty("otp");
     });
 
-    test("should return OTP for an existing user", async () => {
+    test("should create an OTP code in the database", async () => {
+      await request(app).post("/auth/otp/request").send({
+        email: "otp-user@gmail.com",
+      });
+
+      const otp = await getLatestOtpCode(client, "otp-user@gmail.com");
+      expect(otp).not.toBeNull();
+      expect(otp).toMatch(/^\d{6}$/);
+    });
+
+    test("should accept an existing user's email", async () => {
       // First, register a user with password
       await request(app).post("/auth/register").send({
         email: "existing@gmail.com",
@@ -298,8 +324,7 @@ describe("Auth Routes Integration Tests", () => {
       });
 
       expect(result.status).toBe(200);
-      expect(result.body).toHaveProperty("otp");
-      expect(result.body.otp).toMatch(/^\d{6}$/);
+      expect(result.body).toHaveProperty("message", "OTP sent successfully");
     });
 
     test("should return 400 for missing email", async () => {
@@ -329,16 +354,16 @@ describe("Auth Routes Integration Tests", () => {
 
     test("should invalidate previous OTPs when a new one is requested", async () => {
       // Request first OTP
-      const firstResult = await request(app).post("/auth/otp/request").send({
+      await request(app).post("/auth/otp/request").send({
         email: "otp-user@gmail.com",
       });
-      const firstOtp = firstResult.body.otp;
+      const firstOtp = await getLatestOtpCode(client, "otp-user@gmail.com");
 
       // Request second OTP
-      const secondResult = await request(app).post("/auth/otp/request").send({
+      await request(app).post("/auth/otp/request").send({
         email: "otp-user@gmail.com",
       });
-      const secondOtp = secondResult.body.otp;
+      const secondOtp = await getLatestOtpCode(client, "otp-user@gmail.com");
 
       // First OTP should no longer work
       const verifyFirst = await request(app).post("/auth/otp/verify").send({
@@ -359,10 +384,10 @@ describe("Auth Routes Integration Tests", () => {
   describe("POST /auth/otp/verify", () => {
     test("should verify a valid OTP and return tokens", async () => {
       // Request OTP
-      const otpResult = await request(app).post("/auth/otp/request").send({
+      await request(app).post("/auth/otp/request").send({
         email: "otp-verify@gmail.com",
       });
-      const otp = otpResult.body.otp;
+      const otp = await getLatestOtpCode(client, "otp-verify@gmail.com");
 
       // Verify OTP
       const result = await request(app).post("/auth/otp/verify").send({
@@ -421,10 +446,10 @@ describe("Auth Routes Integration Tests", () => {
 
     test("should not allow OTP reuse after successful verification", async () => {
       // Request OTP
-      const otpResult = await request(app).post("/auth/otp/request").send({
+      await request(app).post("/auth/otp/request").send({
         email: "otp-reuse@gmail.com",
       });
-      const otp = otpResult.body.otp;
+      const otp = await getLatestOtpCode(client, "otp-reuse@gmail.com");
 
       // First verification should succeed
       const firstVerify = await request(app).post("/auth/otp/verify").send({
@@ -443,10 +468,10 @@ describe("Auth Routes Integration Tests", () => {
 
     test("should return 401 for expired OTP", async () => {
       // Request OTP
-      const otpResult = await request(app).post("/auth/otp/request").send({
+      await request(app).post("/auth/otp/request").send({
         email: "otp-expired@gmail.com",
       });
-      const otp = otpResult.body.otp;
+      const otp = await getLatestOtpCode(client, "otp-expired@gmail.com");
 
       // Manually expire the OTP in the database
       await client.query(

@@ -9,6 +9,7 @@ import swaggerUi from "swagger-ui-express";
 import swaggerDocument from "../../docs/swagger.json";
 import { errorHandler } from "../middlewares/errorHandler";
 import { logger } from "../utils/logger";
+import { EmailService } from "../utils/email";
 import { Request, Response } from "express";
 
 export function createApp(query: Pool | Client) {
@@ -16,7 +17,8 @@ export function createApp(query: Pool | Client) {
 
   const authRepository = new AuthRepository(query);
   const authService = new AuthService(authRepository);
-  const otpService = new OtpService(authRepository, authService);
+  const emailService = new EmailService();
+  const otpService = new OtpService(authRepository, authService, emailService);
   const authController = new AuthController(authService, otpService);
   const authRoutes = createAuthRoutes(authController);
 

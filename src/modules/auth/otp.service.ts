@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { AuthRepository } from "./auth.repository";
 import { AuthService, AuthResponse } from "./auth.service";
+import { EmailService } from "../../shared/utils/email";
 import { logger } from "../../shared/utils/logger";
 import { LOGS_MESSAGES } from "../../shared/constants/logsMessages";
 
@@ -14,6 +15,7 @@ export class OtpService {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly authService: AuthService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -26,13 +28,12 @@ export class OtpService {
 
   /**
    * Requests an OTP for the given email. Finds or creates a passwordless user,
-   * invalidates any existing OTPs, generates a new one, and stores it in the database.
+   * invalidates any existing OTPs, generates a new one, stores it in the database,
+   * and sends it via email.
    * @param email - The email address to send the OTP to.
-   * @returns A promise resolving to an object with a message and the OTP code (dev mode).
+   * @returns A promise resolving to an object with a confirmation message.
    */
-  async requestOtp(
-    email: string,
-  ): Promise<{ message: string; otp: string }> {
+  async requestOtp(email: string): Promise<{ message: string }> {
     const user = await this.authRepository.findOrCreatePasswordlessUser(email);
 
     // Invalidate any existing OTP codes for this user
@@ -43,12 +44,10 @@ export class OtpService {
 
     await this.authRepository.createOtpCode(user.id, code, expiresAt);
 
-    logger.info(LOGS_MESSAGES.ERRORS.AUTH.SERVICE.OTP_GENERATED(email));
-    logger.info(`[DEV] OTP for ${email}: ${code}`);
+    await this.emailService.sendOtpEmail(email, code);
 
     return {
       message: "OTP sent successfully",
-      otp: code, // Included in response for development; remove in production
     };
   }
 
@@ -81,8 +80,6 @@ export class OtpService {
 
     // Invalidate all OTPs for this user (single-use)
     await this.authRepository.invalidateAllUserOtpCodes(user.id);
-
-    logger.info(LOGS_MESSAGES.ERRORS.AUTH.SERVICE.OTP_VERIFIED(email));
 
     return this.authService.generateTokenPair(user.id, user.email);
   }

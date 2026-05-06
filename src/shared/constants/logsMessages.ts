@@ -58,9 +58,6 @@ export const LOGS_MESSAGES = {
           "Attempted to revoke non-existent or already revoked token",
         JWT_PUBLIC_KEY_NOT_SET:
           "JWT public key is not set in environment variables",
-        OTP_GENERATED: (email: string) => `OTP generated for ${email}`,
-        OTP_VERIFIED: (email: string) =>
-          `OTP verified successfully for ${email}`,
         OTP_INVALID: (email: string) =>
           `Invalid or expired OTP attempt for ${email}`,
         USER_NOT_FOUND: (email: string) =>
