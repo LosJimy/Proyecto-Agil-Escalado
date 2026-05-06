@@ -8,5 +8,7 @@ export function createAuthRoutes(controller: AuthController): Router {
   router.post("/register", controller.register);
   router.post("/refresh", controller.refresh);
   router.get("/.well-known/jwks.json", controller.getJwks);
+  router.post("/otp/request", controller.requestOtp);
+  router.post("/otp/verify", controller.verifyOtp);
   return router;
 }

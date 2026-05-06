@@ -33,8 +33,25 @@ afterAll(async () => {
 
 beforeEach(async () => {
   // Clean the database between tests
-  await client.query("TRUNCATE users, refresh_tokens CASCADE");
+  await client.query("TRUNCATE users, refresh_tokens, otp_codes CASCADE");
 });
+
+/**
+ * Helper to retrieve the latest unused OTP code for an email from the database.
+ */
+async function getLatestOtpCode(
+  dbClient: Client,
+  email: string,
+): Promise<string> {
+  const result = await dbClient.query(
+    `SELECT oc.code FROM otp_codes oc
+     JOIN users u ON oc.user_id = u.id
+     WHERE u.email = $1 AND oc.used = FALSE
+     ORDER BY oc.created_at DESC LIMIT 1`,
+    [email],
+  );
+  return result.rows[0]?.code;
+}
 
 describe("Auth Routes Integration Tests", () => {
   describe("POST /auth/register", () => {
@@ -270,6 +287,205 @@ describe("Auth Routes Integration Tests", () => {
       expect(result.status).toBe(200);
       expect(result.body).toHaveProperty("keys");
       expect(Array.isArray(result.body.keys)).toBe(true);
+    });
+  });
+
+  describe("POST /auth/otp/request", () => {
+    test("should accept a new email and return success message", async () => {
+      const result = await request(app).post("/auth/otp/request").send({
+        email: "otp-user@gmail.com",
+      });
+
+      expect(result.status).toBe(200);
+      expect(result.body).toHaveProperty("message", "OTP sent successfully");
+      expect(result.body).not.toHaveProperty("otp");
+    });
+
+    test("should create an OTP code in the database", async () => {
+      await request(app).post("/auth/otp/request").send({
+        email: "otp-user@gmail.com",
+      });
+
+      const otp = await getLatestOtpCode(client, "otp-user@gmail.com");
+      expect(otp).not.toBeNull();
+      expect(otp).toMatch(/^\d{6}$/);
+    });
+
+    test("should accept an existing user's email", async () => {
+      // First, register a user with password
+      await request(app).post("/auth/register").send({
+        email: "existing@gmail.com",
+        password: "Password123",
+      });
+
+      // Then, request OTP for the same email
+      const result = await request(app).post("/auth/otp/request").send({
+        email: "existing@gmail.com",
+      });
+
+      expect(result.status).toBe(200);
+      expect(result.body).toHaveProperty("message", "OTP sent successfully");
+    });
+
+    test("should return 400 for missing email", async () => {
+      const result = await request(app).post("/auth/otp/request").send({});
+
+      expect(result.status).toBe(400);
+      expect(result.body).toHaveProperty("message");
+    });
+
+    test("should return 400 for invalid email format", async () => {
+      const result = await request(app).post("/auth/otp/request").send({
+        email: "not-an-email",
+      });
+
+      expect(result.status).toBe(400);
+      expect(result.body).toHaveProperty("message");
+    });
+
+    test("should return 400 for invalid request body", async () => {
+      const result = await request(app)
+        .post("/auth/otp/request")
+        .send("invalid-body");
+
+      expect(result.status).toBe(400);
+      expect(result.body).toHaveProperty("message");
+    });
+
+    test("should invalidate previous OTPs when a new one is requested", async () => {
+      // Request first OTP
+      await request(app).post("/auth/otp/request").send({
+        email: "otp-user@gmail.com",
+      });
+      const firstOtp = await getLatestOtpCode(client, "otp-user@gmail.com");
+
+      // Request second OTP
+      await request(app).post("/auth/otp/request").send({
+        email: "otp-user@gmail.com",
+      });
+      const secondOtp = await getLatestOtpCode(client, "otp-user@gmail.com");
+
+      // First OTP should no longer work
+      const verifyFirst = await request(app).post("/auth/otp/verify").send({
+        email: "otp-user@gmail.com",
+        otp: firstOtp,
+      });
+      expect(verifyFirst.status).toBe(401);
+
+      // Second OTP should work
+      const verifySecond = await request(app).post("/auth/otp/verify").send({
+        email: "otp-user@gmail.com",
+        otp: secondOtp,
+      });
+      expect(verifySecond.status).toBe(200);
+    });
+  });
+
+  describe("POST /auth/otp/verify", () => {
+    test("should verify a valid OTP and return tokens", async () => {
+      // Request OTP
+      await request(app).post("/auth/otp/request").send({
+        email: "otp-verify@gmail.com",
+      });
+      const otp = await getLatestOtpCode(client, "otp-verify@gmail.com");
+
+      // Verify OTP
+      const result = await request(app).post("/auth/otp/verify").send({
+        email: "otp-verify@gmail.com",
+        otp,
+      });
+
+      expect(result.status).toBe(200);
+      expect(result.body).toHaveProperty("accessToken");
+      expect(result.body).toHaveProperty("refreshToken");
+    });
+
+    test("should return 401 for wrong OTP code", async () => {
+      // Request OTP
+      await request(app).post("/auth/otp/request").send({
+        email: "otp-wrong@gmail.com",
+      });
+
+      // Verify with wrong OTP
+      const result = await request(app).post("/auth/otp/verify").send({
+        email: "otp-wrong@gmail.com",
+        otp: "000000",
+      });
+
+      expect(result.status).toBe(401);
+      expect(result.body).toHaveProperty("message");
+    });
+
+    test("should return 401 for non-existent user email", async () => {
+      const result = await request(app).post("/auth/otp/verify").send({
+        email: "nonexistent@gmail.com",
+        otp: "123456",
+      });
+
+      expect(result.status).toBe(401);
+      expect(result.body).toHaveProperty("message");
+    });
+
+    test("should return 400 for missing email or otp", async () => {
+      const result = await request(app).post("/auth/otp/verify").send({
+        email: "test@gmail.com",
+      });
+
+      expect(result.status).toBe(400);
+      expect(result.body).toHaveProperty("message");
+    });
+
+    test("should return 400 for invalid request body", async () => {
+      const result = await request(app)
+        .post("/auth/otp/verify")
+        .send("invalid-body");
+
+      expect(result.status).toBe(400);
+      expect(result.body).toHaveProperty("message");
+    });
+
+    test("should not allow OTP reuse after successful verification", async () => {
+      // Request OTP
+      await request(app).post("/auth/otp/request").send({
+        email: "otp-reuse@gmail.com",
+      });
+      const otp = await getLatestOtpCode(client, "otp-reuse@gmail.com");
+
+      // First verification should succeed
+      const firstVerify = await request(app).post("/auth/otp/verify").send({
+        email: "otp-reuse@gmail.com",
+        otp,
+      });
+      expect(firstVerify.status).toBe(200);
+
+      // Second verification with same OTP should fail
+      const secondVerify = await request(app).post("/auth/otp/verify").send({
+        email: "otp-reuse@gmail.com",
+        otp,
+      });
+      expect(secondVerify.status).toBe(401);
+    });
+
+    test("should return 401 for expired OTP", async () => {
+      // Request OTP
+      await request(app).post("/auth/otp/request").send({
+        email: "otp-expired@gmail.com",
+      });
+      const otp = await getLatestOtpCode(client, "otp-expired@gmail.com");
+
+      // Manually expire the OTP in the database
+      await client.query(
+        "UPDATE otp_codes SET expires_at = NOW() - INTERVAL '1 minute'",
+      );
+
+      // Verification should fail
+      const result = await request(app).post("/auth/otp/verify").send({
+        email: "otp-expired@gmail.com",
+        otp,
+      });
+
+      expect(result.status).toBe(401);
+      expect(result.body).toHaveProperty("message");
     });
   });
 });

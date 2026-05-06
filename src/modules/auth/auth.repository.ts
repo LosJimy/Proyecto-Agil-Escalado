@@ -1,5 +1,5 @@
 import { Client, Pool } from "pg";
-import { RefreshTokenDB, UserDB } from "./auth.types";
+import { OtpCodeDB, RefreshTokenDB, UserDB } from "./auth.types";
 
 /**
  * Repository class for authentication-related database operations. Provides methods to
@@ -55,6 +55,25 @@ export class AuthRepository {
       "INSERT INTO users (email, password_hash) " +
         "VALUES ($1, $2) RETURNING id, email, password_hash, is_active",
       [email, passwordHash],
+    );
+    return result.rows[0];
+  }
+
+  /**
+   * Finds an existing user by email, or creates a new passwordless user (no password).
+   * @param email - The email address to find or create.
+   * @returns A promise resolving to the existing or newly created user.
+   */
+  async findOrCreatePasswordlessUser(email: string): Promise<UserDB> {
+    const existingUser = await this.getUserByEmail(email);
+    if (existingUser) {
+      return existingUser;
+    }
+
+    const result = await this.query.query(
+      "INSERT INTO users (email) " +
+        "VALUES ($1) RETURNING id, email, password_hash, is_active",
+      [email],
     );
     return result.rows[0];
   }
@@ -116,6 +135,59 @@ export class AuthRepository {
   async revokeAllUserRefreshTokens(userId: string): Promise<void> {
     await this.query.query(
       "UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1",
+      [userId],
+    );
+  }
+
+  /**
+   * Creates an OTP code for a user in the database.
+   * @param userId - The ID of the user the OTP is for.
+   * @param code - The 6-digit OTP code.
+   * @param expiresAt - The expiration time of the OTP.
+   * @returns A promise that resolves when the OTP is created.
+   */
+  async createOtpCode(
+    userId: string,
+    code: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.query.query(
+      "INSERT INTO otp_codes (user_id, code, expires_at) VALUES ($1, $2, $3)",
+      [userId, code, expiresAt],
+    );
+  }
+
+  /**
+   * Retrieves a valid (unused, non-expired) OTP code for a user.
+   * @param userId - The ID of the user.
+   * @param code - The OTP code to validate.
+   * @returns A promise resolving to the OTP record or null if not valid.
+   */
+  async getValidOtpCode(
+    userId: string,
+    code: string,
+  ): Promise<OtpCodeDB | null> {
+    const result = await this.query.query(
+      "SELECT id, user_id, code, expires_at, used FROM otp_codes " +
+        "WHERE user_id = $1 AND code = $2 AND used = FALSE AND expires_at > NOW()",
+      [userId, code],
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0];
+  }
+
+  /**
+   * Marks all OTP codes for a user as used, invalidating them.
+   * @param userId - The ID of the user whose OTP codes should be invalidated.
+   * @returns A promise that resolves when all OTPs are invalidated.
+   */
+  async invalidateAllUserOtpCodes(userId: string): Promise<void> {
+    await this.query.query(
+      "UPDATE otp_codes SET used = TRUE WHERE user_id = $1",
       [userId],
     );
   }
