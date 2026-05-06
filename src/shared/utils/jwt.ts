@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
 import { exportJWK, importSPKI } from "jose";
+import { logger } from "./logger";
+import { LOGS_MESSAGES } from "../constants/logsMessages";
 
 /**
  * Decodes a base64 encoded string.
@@ -15,7 +17,7 @@ const privateKey = decodeBase64(process.env.JWT_PRIVATE_KEY || "");
 const publicKey = decodeBase64(process.env.JWT_PUBLIC_KEY || "");
 
 if (!privateKey || !publicKey) {
-  console.warn("⚠️ JWT keys are not set in environment variables");
+  logger.warn(LOGS_MESSAGES.ERRORS.UTILS.JWT_KEYS_NOT_SET);
 }
 
 export interface JWTPayload {

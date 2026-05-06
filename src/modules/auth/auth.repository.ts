@@ -1,32 +1,20 @@
-import { query } from "../../shared/database/db";
-
-export interface UserDB {
-  id: string;
-  email: string;
-  password_hash: string;
-  is_active: boolean;
-}
-
-export interface RefreshTokenDB {
-  id: string;
-  user_id: string;
-  token_hash: string;
-  expires_at: Date;
-  revoked: boolean;
-}
+import { Client, Pool } from "pg";
+import { RefreshTokenDB, UserDB } from "./auth.types";
 
 /**
  * Repository class for authentication-related database operations. Provides methods to
  * get users by email or ID, create new users, manage refresh tokens, and revoke tokens.
  */
 export class AuthRepository {
+  constructor(private readonly query: Client | Pool) {}
+
   /**
    * Gets a user by their email address.
    * @param email - The email address of the user to retrieve.
    * @returns A promise resolving to the user or null if not found.
    */
   async getUserByEmail(email: string): Promise<UserDB | null> {
-    const result = await query(
+    const result = await this.query.query(
       "SELECT id, email, password_hash, is_active FROM users WHERE email = $1",
       [email],
     );
@@ -44,7 +32,7 @@ export class AuthRepository {
    * @returns A promise resolving to the user or null if not found.
    */
   async getUserById(id: string): Promise<UserDB | null> {
-    const result = await query(
+    const result = await this.query.query(
       "SELECT id, email, password_hash, is_active FROM users WHERE id = $1",
       [id],
     );
@@ -63,7 +51,7 @@ export class AuthRepository {
    * @returns A promise resolving to the created user.
    */
   async createUser(email: string, passwordHash: string): Promise<UserDB> {
-    const result = await query(
+    const result = await this.query.query(
       "INSERT INTO users (email, password_hash) " +
         "VALUES ($1, $2) RETURNING id, email, password_hash, is_active",
       [email, passwordHash],
@@ -83,7 +71,7 @@ export class AuthRepository {
     tokenHash: string,
     expiresAt: Date,
   ): Promise<void> {
-    await query(
+    await this.query.query(
       "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
       [userId, tokenHash, expiresAt],
     );
@@ -95,7 +83,7 @@ export class AuthRepository {
    * @returns A promise resolving to the refresh token or null if not found.
    */
   async getRefreshToken(tokenHash: string): Promise<RefreshTokenDB | null> {
-    const result = await query(
+    const result = await this.query.query(
       "SELECT id, user_id, token_hash, expires_at, revoked FROM refresh_tokens " +
         "WHERE token_hash = $1",
       [tokenHash],
@@ -114,7 +102,7 @@ export class AuthRepository {
    * @returns A promise that resolves when the token is revoked.
    */
   async revokeRefreshToken(tokenHash: string): Promise<void> {
-    await query(
+    await this.query.query(
       "UPDATE refresh_tokens SET revoked = TRUE WHERE token_hash = $1",
       [tokenHash],
     );
@@ -126,8 +114,9 @@ export class AuthRepository {
    * @returns A promise that resolves when all tokens are revoked.
    */
   async revokeAllUserRefreshTokens(userId: string): Promise<void> {
-    await query("UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1", [
-      userId,
-    ]);
+    await this.query.query(
+      "UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1",
+      [userId],
+    );
   }
 }
