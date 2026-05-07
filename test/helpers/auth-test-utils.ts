@@ -5,13 +5,9 @@ import {
   StartedPostgreSqlContainer,
 } from "@testcontainers/postgresql";
 import path from "path";
-import { expect, test } from "vitest";
-import request from "supertest";
 
 /**
- * Helper function to set up the test application with a PostgreSQL container.
- * @returns A promise that resolves to an object containing the PostgreSQL client,
- * the Express app instance, and the container.
+ * Helper function to set up the test application with a PostgreSQL container
  */
 export async function setupTestApp(): Promise<{
   client: Client;
@@ -39,9 +35,6 @@ export async function setupTestApp(): Promise<{
 
 /**
  * Helper function to tear down the test application by closing the PostgreSQL client
- * and stopping the container.
- * @param client - The PostgreSQL client to be closed.
- * @param container - The PostgreSQL container to be stopped.
  */
 export async function teardownTestApp(
   client: Client,

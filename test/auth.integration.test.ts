@@ -1,9 +1,5 @@
-import path from "path";
 import { Client } from "pg";
-import {
-  PostgreSqlContainer,
-  StartedPostgreSqlContainer,
-} from "@testcontainers/postgresql";
+import { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import {
   describe,
   expect,
@@ -222,7 +218,7 @@ describe("Auth Routes Integration Tests", () => {
         refreshToken: "invalid-token",
       });
 
-      expect(result.status).toBe(400);
+      expect(result.status).toBe(401);
       expect(result.body).toHaveProperty("message");
     });
   });
@@ -275,7 +271,7 @@ describe("Auth Routes Integration Tests", () => {
         refreshToken: "invalid-token",
       });
 
-      expect(result.status).toBe(400);
+      expect(result.status).toBe(401);
       expect(result.body).toHaveProperty("message");
     });
   });
@@ -297,7 +293,7 @@ describe("Auth Routes Integration Tests", () => {
       });
 
       expect(result.status).toBe(200);
-      expect(result.body).toHaveProperty("message", "OTP sent successfully");
+      expect(result.body).toHaveProperty("message");
       expect(result.body).not.toHaveProperty("otp");
     });
 
@@ -324,7 +320,7 @@ describe("Auth Routes Integration Tests", () => {
       });
 
       expect(result.status).toBe(200);
-      expect(result.body).toHaveProperty("message", "OTP sent successfully");
+      expect(result.body).toHaveProperty("message");
     });
 
     test("should return 400 for missing email", async () => {

@@ -1,33 +1,25 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { AuthRepository } from "./auth.repository";
+import { JwtKeyRepository } from "./jwt-key.repository";
 import {
   decodeBase64,
+  generateRSAKeyPair,
   getPublicKeyJWK,
   signAccessToken,
 } from "../../shared/utils/jwt";
-import { LOGS_MESSAGES } from "../../shared/constants/logsMessages";
 
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
 }
 
-/**
- * Provides authentication-related services, including user login, registration, and
- * token refreshing.
- */
 export class AuthService {
-  constructor(private readonly authRepository: AuthRepository) {}
+  constructor(
+    private readonly authRepository: AuthRepository,
+    private readonly jwtKeyRepository: JwtKeyRepository,
+  ) {}
 
-  /**
-   * Authenticates a user with the provided email and password. If the credentials are
-   * valid, it generates and returns an access token and a refresh token.
-   * @param {string} email - The user's email.
-   * @param {string} password - The user's password.
-   * @returns {Promise<AuthResponse | null>} - A promise resolving to the
-   * authentication response or null if invalid.
-   */
   async login(email: string, password: string): Promise<AuthResponse | null> {
     const user = await this.authRepository.getUserByEmail(email);
 
@@ -44,15 +36,8 @@ export class AuthService {
     return this.generateTokenPair(user.id, user.email);
   }
 
-  /**
-   * Logs out a user by revoking the provided refresh token, preventing it from being
-   * used to generate new access tokens.
-   * @param {string} token - The refresh token to revoke.
-   * @returns {Promise<boolean>} - A promise that resolves to true if the token is
-   * successfully revoked, false otherwise.
-   */
   async logout(token: string): Promise<boolean> {
-    const storedToken = await this.authRepository.getRefreshToken(token);
+    const storedToken = await this.authRepository.getRefreshTokenByHash(token);
     if (storedToken && !storedToken.revoked) {
       await this.authRepository.revokeRefreshToken(token);
       return true;
@@ -60,16 +45,6 @@ export class AuthService {
     return false;
   }
 
-  /**
-   * Registers a new user with the provided email and password. Validates that the user
-   * does not already exist, hashes the password, creates the user, and returns an
-   * access token and a refresh token.
-   * @param {string} email - The user's email.
-   * @param {string} password - The user's password.
-   * @returns {Promise<AuthResponse | null>} - A promise resolving to the authentication
-   * response or null if registration fails (user already exists).
-   * @throws {UserAlreadyExistsError} - If a user with the given email already exists.
-   */
   async register(
     email: string,
     password: string,
@@ -87,69 +62,50 @@ export class AuthService {
     return this.generateTokenPair(newUser.id, newUser.email);
   }
 
-  /**
-   * Generates a new refresh token.
-   * @returns {string} - The generated refresh token.
-   */
-  private generateRefreshToken(): string {
-    return crypto.randomBytes(40).toString("hex");
-  }
-
-  /**
-   * Refreshes the access token using the provided refresh token. Validates the refresh
-   * token, checks if it's revoked or expired, and if valid, generates and returns a
-   * new access token and refresh token pair.
-   * @param {string} token - The refresh token.
-   * @returns {Promise<AuthResponse | null>} - A promise resolving to the
-   * authentication response or null if invalid.
-   */
   async refreshToken(token: string): Promise<AuthResponse | null> {
-    try {
-      const storedToken = await this.authRepository.getRefreshToken(token);
+    const storedToken = await this.authRepository.getRefreshTokenByHash(token);
 
-      // Rotate the refresh token if it's valid, otherwise return null
-      if (
-        !storedToken ||
-        storedToken.revoked ||
-        new Date() > storedToken.expires_at
-      ) {
-        if (storedToken && !storedToken.revoked) {
-          await this.authRepository.revokeRefreshToken(token);
-        }
-        return null;
+    if (
+      !storedToken ||
+      storedToken.revoked ||
+      new Date() > storedToken.expires_at
+    ) {
+      // Revoke token if it's expired
+      if (storedToken && !storedToken.revoked) {
+        await this.authRepository.revokeRefreshToken(token);
       }
-
-      const user = await this.authRepository.getUserById(storedToken.user_id);
-      if (!user || !user.is_active) {
-        return null;
-      }
-
-      await this.authRepository.revokeRefreshToken(token);
-      return this.generateTokenPair(user.id, user.email);
-    } catch (error) {
-      throw error;
+      return null;
     }
+
+    const user = await this.authRepository.getUserById(storedToken.user_id);
+    if (!user || !user.is_active) {
+      return null;
+    }
+
+    await this.authRepository.revokeRefreshToken(token);
+    return this.generateTokenPair(user.id, user.email);
   }
 
-  /**
-   * Generates a new access token and refresh token pair for the given user ID and
-   * email.
-   * @param {string} userId - The user's ID.
-   * @param {string} email - The user's email.
-   * @returns {Promise<AuthResponse>} - A promise resolving to the authentication
-   * response.
-   */
   async generateTokenPair(
     userId: string,
     email: string,
   ): Promise<AuthResponse> {
-    const accessToken = signAccessToken({ sub: userId, email });
+    let latestKey = await this.jwtKeyRepository.getLatestActiveKey();
 
-    const refreshToken = this.generateRefreshToken();
+    if (!latestKey) {
+      latestKey = await this.seedInitialKey();
+    }
+
+    const accessToken = signAccessToken(
+      { sub: userId, email },
+      latestKey.private_key,
+      latestKey.kid,
+    );
+
+    const refreshToken = crypto.randomBytes(40).toString("hex");
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Revoke all existing refresh tokens for the user before creating a new one
     await this.authRepository.revokeAllUserRefreshTokens(userId);
 
     await this.authRepository.createRefreshToken(
@@ -161,24 +117,43 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  /**
-   * Retrieves the JSON Web Key Set (JWKS) containing the public key used for verifying
-   * JWTs.
-   * @returns {Promise<{ keys: any[] }>} - A promise resolving to an object containing
-   * the JWKS.
-   * @throws {Error} - If the JWT public key is not set in environment variables.
-   */
   async getJwks(): Promise<{ keys: any[] }> {
-    const publicKey = decodeBase64(process.env.JWT_PUBLIC_KEY || "");
-    if (!publicKey) {
-      const errorMessage =
-        LOGS_MESSAGES.ERRORS.AUTH.SERVICE.JWT_PUBLIC_KEY_NOT_SET;
-      throw new Error(errorMessage);
+    const activeKeys = await this.jwtKeyRepository.getActiveKeys();
+
+    if (activeKeys.length === 0) {
+      const seededKey = await this.seedInitialKey();
+      activeKeys.push(seededKey);
     }
-    const jwk = await getPublicKeyJWK(publicKey);
+
+    const jwks = await Promise.all(
+      activeKeys.map((key) => getPublicKeyJWK(key.public_key, key.kid)),
+    );
 
     return {
-      keys: [jwk],
+      keys: jwks,
     };
+  }
+
+  async rotateKeys(): Promise<void> {
+    const { kid, privateKey, publicKey } = generateRSAKeyPair();
+    await this.jwtKeyRepository.createKey(kid, privateKey, publicKey);
+  }
+
+  private async seedInitialKey() {
+    // Try to seed initial key from env
+    const envPrivateKey = decodeBase64(process.env.JWT_PRIVATE_KEY || "");
+    const envPublicKey = decodeBase64(process.env.JWT_PUBLIC_KEY || "");
+
+    if (envPrivateKey && envPublicKey) {
+      return await this.jwtKeyRepository.createKey(
+        crypto.randomBytes(16).toString("hex"),
+        envPrivateKey,
+        envPublicKey,
+      );
+    }
+
+    // If no key in env, generate a new one
+    const { kid, privateKey, publicKey } = generateRSAKeyPair();
+    return await this.jwtKeyRepository.createKey(kid, privateKey, publicKey);
   }
 }

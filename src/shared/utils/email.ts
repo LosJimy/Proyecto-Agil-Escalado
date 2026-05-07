@@ -1,18 +1,12 @@
 import nodemailer from "nodemailer";
 import { logger } from "./logger";
 
-/**
- * Email service for sending transactional emails using Nodemailer.
- * Configured via SMTP environment variables. Falls back to logging
- * the email content when SMTP is not configured.
- */
 export class EmailService {
   private transporter: nodemailer.Transporter | null = null;
   private readonly fromAddress: string;
 
   constructor() {
-    this.fromAddress =
-      process.env.SMTP_FROM || "noreply@sistema-identidad.local";
+    this.fromAddress = process.env.SMTP_FROM || "noreply@test.com";
 
     const host = process.env.SMTP_HOST;
     const port = Number(process.env.SMTP_PORT ?? 587);
@@ -35,11 +29,6 @@ export class EmailService {
     }
   }
 
-  /**
-   * Sends an OTP verification email to the specified address.
-   * @param to - The recipient email address.
-   * @param otp - The 6-digit OTP code.
-   */
   async sendOtpEmail(to: string, otp: string): Promise<void> {
     const subject = "Your verification code";
     const text = `Your verification code is: ${otp}\n\nThis code expires in 5 minutes. If you didn't request this, please ignore this email.`;
