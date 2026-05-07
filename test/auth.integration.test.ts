@@ -8,8 +8,8 @@ import {
   afterAll,
   beforeEach,
 } from "vitest";
-import { createApp } from "../src/shared/factories/app-factory";
 import request from "supertest";
+import { createApp } from "../src/shared/factories/app-factory";
 import { setupTestApp, teardownTestApp } from "./helpers/auth-test-utils";
 
 let client: Client;
@@ -21,20 +21,16 @@ beforeAll(async () => {
   client = setup.client;
   app = setup.app;
   container = setup.container;
-});
+}, 60000);
 
 afterAll(async () => {
   await teardownTestApp(client, container);
 });
 
 beforeEach(async () => {
-  // Clean the database between tests
   await client.query("TRUNCATE users, refresh_tokens, otp_codes CASCADE");
 });
 
-/**
- * Helper to retrieve the latest unused OTP code for an email from the database.
- */
 async function getLatestOtpCode(
   dbClient: Client,
   email: string,

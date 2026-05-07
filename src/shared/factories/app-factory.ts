@@ -6,6 +6,10 @@ import { AuthService } from "../../modules/auth/auth.service";
 import { OtpService } from "../../modules/auth/otp.service";
 import { AuthController } from "../../modules/auth/auth.controller";
 import { createAuthRoutes } from "../../modules/auth/auth.routes";
+import { UsersRepository } from "../../modules/users/users.repository";
+import { UsersService } from "../../modules/users/users.service";
+import { UsersController } from "../../modules/users/users.controller";
+import { createUsersRoutes } from "../../modules/users/users.routes";
 import swaggerUi from "swagger-ui-express";
 import swaggerDocument from "../../docs/swagger.json";
 import { errorHandler } from "../middlewares/errorHandler";
@@ -24,9 +28,15 @@ export function createApp(query: Pool | Client) {
   const authController = new AuthController(authService, otpService);
   const authRoutes = createAuthRoutes(authController);
 
+  const usersRepository = new UsersRepository(query);
+  const usersService = new UsersService(usersRepository, authRepository);
+  const usersController = new UsersController(usersService);
+  const usersRoutes = createUsersRoutes(usersController);
+
   app.use(express.json());
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   app.use("/auth", authRoutes);
+  app.use("/users", usersRoutes);
 
   app.use((req, res, next) => {
     logger.http(`${req.method} ${req.url}`);

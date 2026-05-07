@@ -23,7 +23,7 @@ beforeAll(async () => {
   client = setup.client;
   app = setup.app;
   container = setup.container;
-});
+}, 60000);
 
 afterAll(async () => {
   await teardownTestApp(client, container);
