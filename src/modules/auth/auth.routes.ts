@@ -3,6 +3,7 @@ import { AuthController } from "./auth.controller";
 
 export function createAuthRoutes(controller: AuthController): Router {
   const router = Router();
+
   router.post("/login", controller.login);
   router.post("/logout", controller.logout);
   router.post("/register", controller.register);
@@ -10,5 +11,6 @@ export function createAuthRoutes(controller: AuthController): Router {
   router.get("/.well-known/jwks.json", controller.getJwks);
   router.post("/otp/request", controller.requestOtp);
   router.post("/otp/verify", controller.verifyOtp);
+
   return router;
 }

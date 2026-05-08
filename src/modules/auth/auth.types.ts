@@ -16,7 +16,17 @@ export interface RefreshTokenDB {
 export interface OtpCodeDB {
   id: string;
   user_id: string;
-  code: string;
+  code_hash: string;
+  purpose: "login" | "deactivate";
   expires_at: Date;
   used: boolean;
+}
+
+export interface JwtKeyDB {
+  id: string;
+  kid: string;
+  private_key: string;
+  public_key: string;
+  is_active: boolean;
+  created_at: Date;
 }

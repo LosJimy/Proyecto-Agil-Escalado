@@ -192,11 +192,197 @@
           "200": {
             "description": "Logout exitoso",
             "content": {
-              "$ref": "#/components/schemas/SimpleResponse"
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
             }
           },
           "400": {
             "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refresh token inválido o expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/otp/request": {
+      "post": {
+        "summary": "Solicita un OTP",
+        "description": "Envía un OTP por correo. Si el usuario no existe, lo crea.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP enviado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/otp/verify": {
+      "post": {
+        "summary": "Verifica un OTP",
+        "description": "Verifica un OTP y devuelve un access token y un refresh token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP verificado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/deactivate": {
+      "post": {
+        "summary": "Solicitar desactivación de cuenta",
+        "description": "Solicita la desactivación de la cuenta de un usuario.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Código de desactivación enviado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales inválidas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/deactivate/confirm": {
+      "post": {
+        "summary": "Confirmar desactivación de cuenta",
+        "description": "Confirma la desactivación de la cuenta usando un código OTP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cuenta desactivada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Código OTP inválido o expirado",
             "content": {
               "application/json": {
                 "schema": {
@@ -218,7 +404,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "example": "usuario@ejemplo.com"
+            "example": "john.doe@example.com"
           },
           "password": {
             "type": "string",
@@ -243,11 +429,12 @@
           "email": {
             "type": "string",
             "format": "email",
-            "example": "usuario@ejemplo.com"
+            "example": "john.doe@example.com"
           },
           "password": {
             "type": "string",
             "format": "password",
+            "pattern": "^(?=.*\\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$",
             "example": "Password123"
           }
         }
@@ -258,7 +445,7 @@
         "properties": {
           "refreshToken": {
             "type": "string",
-            "example": "e0b1a7f81c9d4a2b3c4d5e6f7a8b9c0d"
+            "example": "f507e6275188e11edfe01078927f2aff2d78dec81bcb8dfa995231bc5c40650e16a2976a4533c2d2"
           }
         }
       },
@@ -267,11 +454,13 @@
         "properties": {
           "accessToken": {
             "type": "string",
-            "description": "JWT de acceso firmado con RS256"
+            "description": "JWT de acceso firmado con RS256",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
           },
           "refreshToken": {
             "type": "string",
-            "description": "Token de refresco para renovar el access token"
+            "description": "Token de refresco para renovar el access token",
+            "example": "f507e6275188e11edfe01078927f2aff2d78dec81bcb8dfa995231bc5c40650e16a2976a4533c2d2"
           }
         }
       },
@@ -290,6 +479,18 @@
                 "alg": { "type": "string" },
                 "use": { "type": "string" }
               }
+            },
+            "example": {
+              "keys": [
+                {
+                  "kty": "RSA",
+                  "n": "...",
+                  "e": "...",
+                  "kid": "key-id-123",
+                  "alg": "RS256",
+                  "use": "sig"
+                }
+              ]
             }
           }
         }
@@ -300,6 +501,41 @@
           "message": {
             "type": "string",
             "example": "Descripción del error"
+          }
+        }
+      },
+      "SimpleResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Operación exitosa"
+          }
+        }
+      },
+      "RequestOtpRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "john.doe@example.com"
+          }
+        }
+      },
+      "VerifyOtpRequest": {
+        "type": "object",
+        "required": ["email", "otp"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "john.doe@example.com"
+          },
+          "otp": {
+            "type": "string",
+            "example": "123456"
           }
         }
       }

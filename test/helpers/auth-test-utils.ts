@@ -5,18 +5,29 @@ import {
   StartedPostgreSqlContainer,
 } from "@testcontainers/postgresql";
 import path from "path";
-import { expect, test } from "vitest";
-import request from "supertest";
+import { EmailService } from "../../src/shared/utils/email";
 
-/**
- * Helper function to set up the test application with a PostgreSQL container.
- * @returns A promise that resolves to an object containing the PostgreSQL client,
- * the Express app instance, and the container.
- */
+export class FakeEmailService extends EmailService {
+  public sentEmails: {
+    to: string;
+    otp: string;
+    purpose: "login" | "deactivate";
+  }[] = [];
+
+  override async sendOtpEmail(
+    to: string,
+    otp: string,
+    purpose: "login" | "deactivate",
+  ): Promise<void> {
+    this.sentEmails.push({ to, otp, purpose });
+  }
+}
+
 export async function setupTestApp(): Promise<{
   client: Client;
   app: ReturnType<typeof createApp>;
   container: StartedPostgreSqlContainer;
+  emailService: FakeEmailService;
 }> {
   const container = await new PostgreSqlContainer("postgres:15-alpine")
     .withCopyFilesToContainer([
@@ -32,21 +43,28 @@ export async function setupTestApp(): Promise<{
   });
   await client.connect();
 
-  const app = createApp(client);
+  const emailService = new FakeEmailService();
+  const app = createApp(client, { emailService });
 
-  return { client, app, container };
+  return { client, app, container, emailService };
 }
 
-/**
- * Helper function to tear down the test application by closing the PostgreSQL client
- * and stopping the container.
- * @param client - The PostgreSQL client to be closed.
- * @param container - The PostgreSQL container to be stopped.
- */
 export async function teardownTestApp(
   client: Client,
   container: StartedPostgreSqlContainer,
 ) {
   await client.end();
   await container.stop();
+}
+
+export async function getLatestOtpCode(client: Client, email: string) {
+  const result = await client.query(
+    "SELECT oc.code_hash FROM otp_codes oc " +
+      "JOIN users u ON oc.user_id = u.id " +
+      "WHERE u.email = $1 AND oc.purpose = 'login' " +
+      "ORDER BY oc.expires_at DESC LIMIT 1",
+    [email],
+  );
+
+  return result.rows[0]?.code_hash ?? null;
 }
