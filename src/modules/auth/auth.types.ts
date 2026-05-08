@@ -16,7 +16,8 @@ export interface RefreshTokenDB {
 export interface OtpCodeDB {
   id: string;
   user_id: string;
-  code: string;
+  code_hash: string;
+  purpose: "login" | "deactivate";
   expires_at: Date;
   used: boolean;
 }

@@ -5,6 +5,10 @@ import { EmailService } from "../../shared/utils/email";
 
 const OTP_EXPIRY_SECONDS = Number(process.env.OTP_EXPIRY_SECONDS ?? 300);
 
+function hashOtpCode(code: string): string {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
 export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
@@ -24,9 +28,15 @@ export class UsersService {
     const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
 
-    await this.authRepository.createOtpCode(user.id, code, expiresAt);
+    const codeHash = hashOtpCode(code);
+    await this.authRepository.createOtpCode(
+      user.id,
+      codeHash,
+      "deactivate",
+      expiresAt,
+    );
 
-    await this.emailService.sendOtpEmail(email, code);
+    await this.emailService.sendOtpEmail(email, code, "deactivate");
 
     return true;
   }
@@ -41,7 +51,11 @@ export class UsersService {
       return false;
     }
 
-    const validOtp = await this.authRepository.getValidOtpCode(user.id, code);
+    const validOtp = await this.authRepository.getValidOtpCode(
+      user.id,
+      hashOtpCode(code),
+      "deactivate",
+    );
 
     if (!validOtp) {
       return false;

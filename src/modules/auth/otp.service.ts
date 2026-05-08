@@ -5,6 +5,10 @@ import { EmailService } from "../../shared/utils/email";
 
 const OTP_EXPIRY_SECONDS = Number(process.env.OTP_EXPIRY_SECONDS ?? 300);
 
+function hashOtpCode(code: string): string {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
 export class OtpService {
   constructor(
     private readonly authRepository: AuthRepository,
@@ -24,9 +28,15 @@ export class OtpService {
     const code = this.generateOtpCode();
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
 
-    await this.authRepository.createOtpCode(user.id, code, expiresAt);
+    const codeHash = hashOtpCode(code);
+    await this.authRepository.createOtpCode(
+      user.id,
+      codeHash,
+      "login",
+      expiresAt,
+    );
 
-    await this.emailService.sendOtpEmail(email, code);
+    await this.emailService.sendOtpEmail(email, code, "login");
 
     return {
       message: "OTP sent successfully at the given email",
@@ -40,7 +50,12 @@ export class OtpService {
       return null;
     }
 
-    const validOtp = await this.authRepository.getValidOtpCode(user.id, code);
+    const codeHash = hashOtpCode(code);
+    const validOtp = await this.authRepository.getValidOtpCode(
+      user.id,
+      codeHash,
+      "login",
+    );
 
     if (!validOtp) {
       return null;

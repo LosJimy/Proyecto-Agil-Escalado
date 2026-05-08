@@ -86,23 +86,26 @@ export class AuthRepository {
   async createOtpCode(
     userId: string,
     code: string,
+    purpose: "login" | "deactivate",
     expiresAt: Date,
   ): Promise<void> {
     await this.query.query(
-      "INSERT INTO otp_codes (user_id, code, expires_at) VALUES ($1, $2, $3)",
-      [userId, code, expiresAt],
+      "INSERT INTO otp_codes (user_id, code_hash, purpose, expires_at) " +
+        "VALUES ($1, $2, $3, $4)",
+      [userId, code, purpose, expiresAt],
     );
   }
 
   async getValidOtpCode(
     userId: string,
     code: string,
+    purpose: "login" | "deactivate",
   ): Promise<OtpCodeDB | null> {
     // Valid OTP: not used and not expired
     const result = await this.query.query(
-      "SELECT id, user_id, code, expires_at, used FROM otp_codes " +
-        "WHERE user_id = $1 AND code = $2 AND used = FALSE AND expires_at > NOW()",
-      [userId, code],
+      "SELECT id, user_id, code_hash, purpose, expires_at, used FROM otp_codes " +
+        "WHERE user_id = $1 AND code_hash = $2 AND purpose = $3 AND used = FALSE AND expires_at > NOW()",
+      [userId, code, purpose],
     );
 
     return result.rows[0] ?? null;

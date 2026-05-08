@@ -1,5 +1,4 @@
 import { Client, Pool } from "pg";
-import { UserDB } from "./users.types";
 
 export class UsersRepository {
   constructor(private readonly query: Client | Pool) {}
