@@ -20,7 +20,7 @@ export class OtpService {
     return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
   }
 
-  async requestOtp(email: string): Promise<{ message: string }> {
+  async requestOtp(email: string): Promise<boolean> {
     const user = await this.authRepository.findOrCreatePasswordlessUser(email);
 
     await this.authRepository.invalidateAllUserOtpCodes(user.id);
@@ -38,9 +38,7 @@ export class OtpService {
 
     await this.emailService.sendOtpEmail(email, code, "login");
 
-    return {
-      message: "OTP sent successfully at the given email",
-    };
+    return true;
   }
 
   async verifyOtp(email: string, code: string): Promise<AuthResponse | null> {

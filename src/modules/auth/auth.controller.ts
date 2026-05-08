@@ -163,7 +163,11 @@ export class AuthController {
       }
 
       const result = await this.otpService.requestOtp(email);
-      res.status(200).json(result);
+      if (result) {
+        res.status(200).json({
+          message: "OTP sent successfully at the given email",
+        });
+      }
     } catch (error) {
       next(error);
     }

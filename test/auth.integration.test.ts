@@ -10,17 +10,20 @@ import {
 } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/shared/factories/app-factory";
-import { setupTestApp, teardownTestApp } from "./helpers/auth-test-utils";
+import {
+  FakeEmailService,
+  getLatestOtpCode,
+  setupTestApp,
+  teardownTestApp,
+} from "./helpers/auth-test-utils";
 
 let client: Client;
 let app: ReturnType<typeof createApp>;
 let container: StartedPostgreSqlContainer;
+let emailService: FakeEmailService;
 
 beforeAll(async () => {
-  const setup = await setupTestApp();
-  client = setup.client;
-  app = setup.app;
-  container = setup.container;
+  ({ client, app, container, emailService } = await setupTestApp());
 }, 60000);
 
 afterAll(async () => {
@@ -29,21 +32,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await client.query("TRUNCATE users, refresh_tokens, otp_codes CASCADE");
+  emailService.sentEmails = [];
 });
-
-async function getLatestOtpCode(
-  dbClient: Client,
-  email: string,
-): Promise<string> {
-  const result = await dbClient.query(
-    `SELECT oc.code FROM otp_codes oc
-     JOIN users u ON oc.user_id = u.id
-     WHERE u.email = $1 AND oc.used = FALSE
-     ORDER BY oc.created_at DESC LIMIT 1`,
-    [email],
-  );
-  return result.rows[0]?.code;
-}
 
 describe("Auth Routes Integration Tests", () => {
   describe("POST /auth/register", () => {
@@ -300,7 +290,7 @@ describe("Auth Routes Integration Tests", () => {
 
       const otp = await getLatestOtpCode(client, "otp-user@gmail.com");
       expect(otp).not.toBeNull();
-      expect(otp).toMatch(/^\d{6}$/);
+      expect(otp).toMatch(/^[a-f0-9]{64}$/); // Should be a SHA-256 hash
     });
 
     test("should accept an existing user's email", async () => {
@@ -349,13 +339,13 @@ describe("Auth Routes Integration Tests", () => {
       await request(app).post("/auth/otp/request").send({
         email: "otp-user@gmail.com",
       });
-      const firstOtp = await getLatestOtpCode(client, "otp-user@gmail.com");
+      const firstOtp = emailService.sentEmails[0].otp;
 
       // Request second OTP
       await request(app).post("/auth/otp/request").send({
         email: "otp-user@gmail.com",
       });
-      const secondOtp = await getLatestOtpCode(client, "otp-user@gmail.com");
+      const secondOtp = emailService.sentEmails[1].otp;
 
       // First OTP should no longer work
       const verifyFirst = await request(app).post("/auth/otp/verify").send({
@@ -379,7 +369,7 @@ describe("Auth Routes Integration Tests", () => {
       await request(app).post("/auth/otp/request").send({
         email: "otp-verify@gmail.com",
       });
-      const otp = await getLatestOtpCode(client, "otp-verify@gmail.com");
+      const otp = emailService.sentEmails[0].otp;
 
       // Verify OTP
       const result = await request(app).post("/auth/otp/verify").send({
@@ -441,7 +431,7 @@ describe("Auth Routes Integration Tests", () => {
       await request(app).post("/auth/otp/request").send({
         email: "otp-reuse@gmail.com",
       });
-      const otp = await getLatestOtpCode(client, "otp-reuse@gmail.com");
+      const otp = emailService.sentEmails[0].otp;
 
       // First verification should succeed
       const firstVerify = await request(app).post("/auth/otp/verify").send({

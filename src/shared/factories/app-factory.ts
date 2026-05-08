@@ -17,13 +17,20 @@ import { logger } from "../utils/logger";
 import { EmailService } from "../utils/email";
 import { Request, Response } from "express";
 
-export function createApp(query: Pool | Client) {
+interface AppDependencies {
+  emailService?: EmailService;
+}
+
+export function createApp(
+  query: Pool | Client,
+  dependencies: AppDependencies = {},
+) {
   const app = express();
 
   const authRepository = new AuthRepository(query);
   const jwtKeyRepository = new JwtKeyRepository(query);
   const authService = new AuthService(authRepository, jwtKeyRepository);
-  const emailService = new EmailService();
+  const emailService = dependencies.emailService || new EmailService();
   const otpService = new OtpService(authRepository, authService, emailService);
   const authController = new AuthController(authService, otpService);
   const authRoutes = createAuthRoutes(authController);
