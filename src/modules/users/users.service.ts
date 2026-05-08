@@ -1,41 +1,59 @@
-import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { UsersRepository } from "./users.repository";
 import { AuthRepository } from "../auth/auth.repository";
-import { AppError } from "../../shared/errors/AppError";
+import { EmailService } from "../../shared/utils/email";
 
-/**
- * Provides user management services, including account deactivation,
- * password changes, and user profile management.
- */
+const OTP_EXPIRY_SECONDS = Number(process.env.OTP_EXPIRY_SECONDS ?? 300);
+
 export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly authRepository: AuthRepository,
+    private readonly emailService: EmailService,
   ) {}
 
-  async deactivateAccount(
-    email: string,
-    password: string,
-  ): Promise<void> {
+  async requestAccountDeactivation(email: string): Promise<boolean> {
     const user = await this.authRepository.getUserByEmail(email);
 
-    if (!user) {
-      throw new AppError("Invalid credentials", 401);
+    if (!user || !user.is_active) {
+      return false;
     }
 
-    if (!user.password_hash) {
-      throw new AppError("This account does not have a password", 400);
+    await this.authRepository.invalidateAllUserOtpCodes(user.id);
+
+    const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
+
+    await this.authRepository.createOtpCode(user.id, code, expiresAt);
+
+    await this.emailService.sendOtpEmail(email, code);
+
+    return true;
+  }
+
+  async confirmDeactivationWithOtp(
+    email: string,
+    code: string,
+  ): Promise<boolean> {
+    const user = await this.authRepository.getUserByEmail(email);
+
+    if (!user || !user.is_active) {
+      return false;
     }
 
-    if (!user.is_active) {
-      throw new AppError("User account is already inactive", 400);
+    const validOtp = await this.authRepository.getValidOtpCode(user.id, code);
+
+    if (!validOtp) {
+      return false;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
-      throw new AppError("Invalid credentials", 401);
-    }
+    Promise.all([
+      this.authRepository.invalidateAllUserOtpCodes(user.id),
+      this.authRepository.revokeAllUserRefreshTokens(user.id),
+    ]);
 
     await this.usersRepository.deactivateUser(user.id);
+
+    return true;
   }
 }

@@ -20,8 +20,6 @@ export class EmailService {
         secure: port === 465,
         auth: { user, pass },
       });
-
-      logger.info(`Email service configured with SMTP host: ${host}`);
     } else {
       logger.warn(
         "SMTP not configured — emails will be logged to console only",

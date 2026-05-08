@@ -300,14 +300,62 @@
     },
     "/users/deactivate": {
       "post": {
-        "summary": "Desactivar cuenta",
-        "description": "Desactiva la cuenta de un usuario.",
+        "summary": "Solicitar desactivación de cuenta",
+        "description": "Solicita la desactivación de la cuenta de un usuario.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
+                "$ref": "#/components/schemas/RequestOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Código de desactivación enviado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales inválidas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/deactivate/confirm": {
+      "post": {
+        "summary": "Confirmar desactivación de cuenta",
+        "description": "Confirma la desactivación de la cuenta usando un código OTP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtpRequest"
               }
             }
           }
@@ -334,7 +382,7 @@
             }
           },
           "401": {
-            "description": "Credenciales inválidas",
+            "description": "Código OTP inválido o expirado",
             "content": {
               "application/json": {
                 "schema": {

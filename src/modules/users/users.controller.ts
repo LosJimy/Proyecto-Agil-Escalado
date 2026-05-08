@@ -11,7 +11,7 @@ export interface GetProfileResponse {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  deactivateAccount = async (
+  requestAccountDeactivation = async (
     req: Request,
     res: Response,
     next: NextFunction,
@@ -21,26 +21,48 @@ export class UsersController {
         return next(new AppError("Request body is required", 400));
       }
 
-      const { email, password } = req.body;
-
-      if (!email || !password) {
-        return next(new AppError("Email and password are required", 400));
+      const { email } = req.body;
+      if (!email) {
+        return next(new AppError("Email is required", 400));
       }
 
-      const emailRegex = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/gi;
-      if (!emailRegex.test(email)) {
-        return next(new AppError("Invalid email format", 400));
+      const result = await this.usersService.requestAccountDeactivation(email);
+      if (result) {
+        res
+          .status(200)
+          .json({ message: "Deactivation code sent to your email" });
+      } else {
+        return next(new AppError("Invalid credentials", 401));
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  confirmAccountDeactivation = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.body || typeof req.body !== "object") {
+        return next(new AppError("Request body is required", 400));
       }
 
-      const passwordRegex =
-        /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/gm;
-      if (!passwordRegex.test(password)) {
-        return next(new AppError("Invalid password format", 400));
+      const { email, otp } = req.body;
+      if (!email || !otp) {
+        return next(new AppError("Email and code are required", 400));
       }
 
-      await this.usersService.deactivateAccount(email, password);
-
-      res.status(200).json({ message: "Account deactivated successfully" });
+      const result = await this.usersService.confirmDeactivationWithOtp(
+        email,
+        otp,
+      );
+      if (result) {
+        res.status(200).json({ message: "Account deactivated successfully" });
+      } else {
+        return next(new AppError("Invalid credentials or code", 401));
+      }
     } catch (error) {
       next(error);
     }

@@ -29,7 +29,11 @@ export function createApp(query: Pool | Client) {
   const authRoutes = createAuthRoutes(authController);
 
   const usersRepository = new UsersRepository(query);
-  const usersService = new UsersService(usersRepository, authRepository);
+  const usersService = new UsersService(
+    usersRepository,
+    authRepository,
+    emailService,
+  );
   const usersController = new UsersController(usersService);
   const usersRoutes = createUsersRoutes(usersController);
 
